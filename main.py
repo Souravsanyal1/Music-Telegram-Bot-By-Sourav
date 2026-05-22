@@ -1,3 +1,16 @@
+import sys
+# Avoid UnicodeEncodeError on Windows terminal when printing emojis
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 import asyncio
 try:
     asyncio.get_event_loop()
@@ -9,6 +22,23 @@ if not hasattr(pyrogram.errors, "GroupcallForbidden"):
     class GroupcallForbidden(Exception):
         pass
     pyrogram.errors.GroupcallForbidden = GroupcallForbidden
+
+import pyrogram.utils
+
+# Dynamic hotpatch to support expanded Telegram Chat/Channel IDs
+def custom_get_peer_type(peer_id: int) -> str:
+    if peer_id < 0:
+        if str(peer_id).startswith("-100"):
+            return "channel"
+        else:
+            return "chat"
+    elif 0 < peer_id:
+        return "user"
+    raise ValueError(f"Peer id invalid: {peer_id}")
+
+pyrogram.utils.get_peer_type = custom_get_peer_type
+pyrogram.utils.MIN_CHANNEL_ID = -100999999999999
+pyrogram.utils.MIN_CHAT_ID = -99999999999999
 
 import logging
 from pyrogram import Client
@@ -108,20 +138,34 @@ async def main():
 
     print("🚀 Bootstrapping Telegram Music Bot...")
     
-    # Start bot
-    await bot_client.start()
+    # Start bot with automatic FloodWait retry
+    while True:
+        try:
+            await bot_client.start()
+            break
+        except pyrogram.errors.FloodWait as e:
+            print(f"⚠️ Telegram returned FLOOD_WAIT for Bot Client. Sleeping for {e.value} seconds before retrying...")
+            await asyncio.sleep(e.value + 2)
+            
     bot_me = await bot_client.get_me()
     config.BOT_USERNAME = bot_me.username
     print(f"✅ Bot Client initialized as @{config.BOT_USERNAME}")
     
-    # Start assistant account
-    await assistant_client.start()
+    # Start assistant account with automatic FloodWait retry
+    while True:
+        try:
+            await assistant_client.start()
+            break
+        except pyrogram.errors.FloodWait as e:
+            print(f"⚠️ Telegram returned FLOOD_WAIT for Assistant Client. Sleeping for {e.value} seconds before retrying...")
+            await asyncio.sleep(e.value + 2)
+            
     assistant_me = await assistant_client.get_me()
     print(f"✅ Assistant User Client initialized as @{assistant_me.username or assistant_me.first_name}")
     
     # Share references with play handler
     from handlers.play import init_clients
-    init_clients(call_py, bot_client)
+    init_clients(call_py, bot_client, assistant_client)
     
     # Start PyTgCalls WebRTC streamer
     await call_py.start()

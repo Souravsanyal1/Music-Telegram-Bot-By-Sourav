@@ -2,7 +2,8 @@ import os
 import logging
 import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+import config
 from pytgcalls import PyTgCalls
 from pytgcalls.types import Update
 from pytgcalls.types import MediaStream
@@ -18,15 +19,17 @@ logger = logging.getLogger("MusicBot.Player")
 db_queue = {}  # Format: {chat_id: {"queue": [], "is_looping": False, "current_song": None, "active_msg_id": None}}
 active_calls = set()
 
-# Reference to the PyTgCalls instance and Bot Client (assigned dynamically on boot in main.py)
+# Reference to the PyTgCalls instance and Clients (assigned dynamically on boot in main.py)
 pytgcalls_client: PyTgCalls = None
 bot_client: Client = None
+assistant_client: Client = None
 
-def init_clients(py_calls: PyTgCalls, bot: Client):
+def init_clients(py_calls: PyTgCalls, bot: Client, assistant: Client):
     """Initializes global references to clients from main.py."""
-    global pytgcalls_client, bot_client
+    global pytgcalls_client, bot_client, assistant_client
     pytgcalls_client = py_calls
     bot_client = bot
+    assistant_client = assistant
 
 
 async def play_next_song(chat_id: int):
@@ -93,6 +96,37 @@ async def play_next_song(chat_id: int):
         output_filename=thumb_path
     )
     
+    # Ensure Assistant is in the group chat and has joined
+    if bot_client and assistant_client:
+        try:
+            assistant_me = await assistant_client.get_me()
+            try:
+                await bot_client.get_chat_member(chat_id, assistant_me.id)
+            except Exception:
+                # Assistant is not in group, try to add them directly
+                try:
+                    await bot_client.add_chat_members(chat_id, assistant_me.id)
+                    logger.info(f"Successfully added Assistant @{assistant_me.username} to chat {chat_id}")
+                except Exception as add_err:
+                    logger.warning(f"Could not add Assistant directly: {add_err}. Trying via invite link.")
+                    try:
+                        invite_link = await bot_client.export_chat_invite_link(chat_id)
+                        await assistant_client.join_chat(invite_link)
+                        logger.info(f"Assistant @{assistant_me.username} successfully joined chat {chat_id} via invite link")
+                    except Exception as join_err:
+                        logger.error(f"Assistant failed to join chat {chat_id}: {join_err}")
+                        error_text = (
+                            f"❌ <b>অ্যাসিস্ট্যান্ট গ্রুপে যুক্ত হতে পারেনি!</b>\n\n"
+                            f"দয়া করে অ্যাসিস্ট্যান্ট অ্যাকাউন্ট 👤 @{assistant_me.username or assistant_me.first_name} কে গ্রুপে এড করুন এবং কথা বলার পারমিশন দিন।"
+                        )
+                        if status_msg:
+                            await status_msg.edit(error_text)
+                        else:
+                            await bot_client.send_message(chat_id, error_text)
+                        return
+        except Exception as outer_err:
+            logger.error(f"Error checking/adding assistant to voice chat: {outer_err}")
+
     # Stream in Voice Chat using PyTgCalls
     try:
         await pytgcalls_client.play(chat_id, MediaStream(extracted_data["stream_url"], video_flags=MediaStream.Flags.IGNORE))
@@ -215,7 +249,7 @@ async def play_command(client: Client, message: Message):
     else:
         # Start playback directly
         await status_msg.delete()
-        group_data["current_song"] = song_info
+        group_data["queue"].append(song_info)
         await play_next_song(chat_id)
 
 
@@ -248,3 +282,24 @@ async def queue_command(client: Client, message: Message):
         response += "📋 <i>আপকামিং কিউতে আর কোনো গান নেই।</i>"
         
     await message.reply_text(response, disable_web_page_preview=True)
+
+
+@Client.on_message(filters.command("play") & filters.private)
+async def play_private_command(client: Client, message: Message):
+    """
+    Handles the /play command in private chats.
+    Warns the user that /play only works inside groups, and offers a button to add the bot to a group.
+    """
+    buttons = [
+        [
+            InlineKeyboardButton(
+                "➕ Add Bot to Group ➕",
+                url=f"https://t.me/{config.BOT_USERNAME}?startgroup=true"
+            )
+        ]
+    ]
+    await message.reply_text(
+        "❌ <b>দুঃখিত!</b>\n\n"
+        "<code>/play</code> কমান্ডটি শুধুমাত্র গ্রুপে কাজ করে। গ্রুপ ভয়েস চ্যাটে গান শুনতে প্রথমে আমাকে আপনার গ্রুপে এড করুন এবং গান প্লে করুন।",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )

@@ -24,7 +24,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
             # Bot client failed (e.g. PeerIdInvalid / ValueError due to empty cache)
             logger.warning(f"Force sub channel check for bot failed: {e}. Falling back to Assistant Client.")
             try:
-                from main import assistant_client
+                from handlers.play import assistant_client
                 chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
                 if chat_member.status in ["left", "kicked"]:
                     return False
@@ -45,7 +45,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
             # Bot client failed (e.g. PeerIdInvalid / ValueError due to empty cache)
             logger.warning(f"Force sub group check for bot failed: {e}. Falling back to Assistant Client.")
             try:
-                from main import assistant_client
+                from handlers.play import assistant_client
                 chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
                 if chat_member.status in ["left", "kicked"]:
                     return False
@@ -114,6 +114,7 @@ async def start_private(client: Client, message: Message):
         f"🎧 YouTube / YouTube Music / MP3 লিংক সাপোর্ট করে।\n"
         f"📊 সুন্দর প্রফেশনাল মিউজিক প্লেয়ার ইন্টারফেস।\n"
         f"🔁 লুপ, স্কিপ, পজ এবং রিজিউম কন্ট্রোল।\n\n"
+        f"👨‍💻 <b>ডেভেলপার ইনফো:</b> <a href='tg://user?id={config.SUDO_USERS[0] if config.SUDO_USERS else 6427121076}'>𝚂𝙾𝚄𝚁𝙰𝚅 𝚂𝙰𝙽𝚈𝙰𝙻</a>\n\n"
         f"💡 কিভাবে শুরু করবেন জানতে <code>/help</code> পাঠান!"
     )
     
@@ -199,6 +200,7 @@ async def verify_sub_callback(client: Client, callback_query: CallbackQuery):
             f"🎧 YouTube / YouTube Music / MP3 লিংক সাপোর্ট করে।\n"
             f"📊 সুন্দর প্রফেশনাল মিউজিক প্লেয়ার ইন্টারফেস।\n"
             f"🔁 লুপ, স্কিপ, পজ এবং রিজিউম কন্ট্রোল।\n\n"
+            f"👨‍💻 <b>ডেভেলপার ইনফো:</b> <a href='tg://user?id={config.SUDO_USERS[0] if config.SUDO_USERS else 6427121076}'>𝚂𝙾𝚄𝚁𝙰𝚅 𝚂𝙰𝙽𝚈𝙰𝙻</a>\n\n"
             f"💡 কিভাবে শুরু করবেন জানতে <code>/help</code> পাঠান!"
         )
         

@@ -9,12 +9,36 @@ def get_start_buttons(bot_username: str) -> InlineKeyboardMarkup:
                 "➕ Add Bot to Group ➕",
                 url=f"https://t.me/{bot_username}?startgroup=true"
             )
-        ],
-        [
-            InlineKeyboardButton("🌐 Support Channel", url="https://t.me/telegram"),
-            InlineKeyboardButton("🛠 Creator", url="https://t.me/telegram")
         ]
     ]
+    
+    # Dynamically add Force Join Channel/Group buttons if configured
+    if config.FORCE_SUB_CHANNEL:
+        channel_link = config.FORCE_SUB_LINK or str(config.FORCE_SUB_CHANNEL)
+        if not (str(channel_link).startswith("https://") or str(channel_link).startswith("t.me/")):
+            channel_link = f"https://t.me/{str(channel_link).replace('@', '')}"
+        buttons.append([InlineKeyboardButton("📢 Join Update Channel", url=channel_link)])
+
+    if config.FORCE_SUB_GROUP:
+        group_link = config.FORCE_SUB_GROUP_LINK or str(config.FORCE_SUB_GROUP)
+        if not (str(group_link).startswith("https://") or str(group_link).startswith("t.me/")):
+            group_link = f"https://t.me/{str(group_link).replace('@', '')}"
+        buttons.append([InlineKeyboardButton("👥 Join Support Group", url=group_link)])
+        
+    # Developer/Creator and Support links row
+    dev_id = config.SUDO_USERS[0] if config.SUDO_USERS else 6427121076
+    dev_button = InlineKeyboardButton("🛠 Creator", url=f"tg://user?id={dev_id}")
+        
+    # Support Channel or generic help
+    support_link = config.FORCE_SUB_LINK or "https://t.me/telegram"
+    if not (str(support_link).startswith("https://") or str(support_link).startswith("t.me/")):
+        support_link = f"https://t.me/{str(support_link).replace('@', '')}"
+        
+    buttons.append([
+        InlineKeyboardButton("🌐 Support", url=support_link),
+        dev_button
+    ])
+    
     return InlineKeyboardMarkup(buttons)
 
 
