@@ -25,38 +25,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("MusicBot.Main")
 
-# 1. Initialize Bot Client (using Pyrogram plugin system)
-bot_client = Client(
-    name="MusicBot",
-    api_id=config.API_ID,
-    api_hash=config.API_HASH,
-    bot_token=config.BOT_TOKEN,
-    plugins=dict(root="handlers"),
-    in_memory=False
-)
+# Declare global client references (will be instantiated inside the active event loop in main())
+bot_client = None
+assistant_client = None
+call_py = None
 
-@bot_client.on_message(group=-1)
 async def log_all_messages(client, message):
     logger.info(f"✨ DIRECT MESSAGE RECEIVED: {message.text or '[Media/None]'} from {message.from_user.id if message.from_user else 'unknown'}")
 
 
-# 2. Initialize Assistant Account User Client
-assistant_client = Client(
-    name="MusicAssistant",
-    api_id=config.API_ID,
-    api_hash=config.API_HASH,
-    session_string=config.SESSION_STRING,
-    in_memory=False
-)
-
-# 3. Initialize PyTgCalls with Assistant User Client
-call_py = PyTgCalls(assistant_client)
-
-
-# Register PyTgCalls Stream End Event Handler
 from pytgcalls.types import StreamEnded
 
-@call_py.on_update()
 async def stream_end_callback(client: PyTgCalls, update: Update):
     """Event handler triggered automatically by PyTgCalls when the current stream track ends."""
     if isinstance(update, StreamEnded):
@@ -69,6 +48,8 @@ async def stream_end_callback(client: PyTgCalls, update: Update):
 
 
 async def main():
+    global bot_client, assistant_client, call_py
+
     # Verify environment configurations
     try:
         verify_config()
@@ -93,6 +74,37 @@ async def main():
             print(f"✅ Web health check server started on port {port}")
         except Exception as e:
             print(f"⚠️ Failed to start health check server: {e}")
+
+    print("🚀 Instantiating Telegram Clients within the active event loop...")
+    
+    # 1. Initialize Bot Client inside the loop to avoid loop mismatch issues
+    bot_client = Client(
+        name="MusicBot",
+        api_id=config.API_ID,
+        api_hash=config.API_HASH,
+        bot_token=config.BOT_TOKEN,
+        plugins=dict(root="handlers"),
+        in_memory=False
+    )
+    
+    # Register dynamic messaging logging handler
+    from pyrogram.handlers import MessageHandler
+    bot_client.add_handler(MessageHandler(log_all_messages), group=-1)
+
+    # 2. Initialize Assistant Account User Client inside the loop
+    assistant_client = Client(
+        name="MusicAssistant",
+        api_id=config.API_ID,
+        api_hash=config.API_HASH,
+        session_string=config.SESSION_STRING,
+        in_memory=False
+    )
+
+    # 3. Initialize PyTgCalls inside the loop
+    call_py = PyTgCalls(assistant_client)
+    
+    # Register stream end update callback dynamically
+    call_py.on_update()(stream_end_callback)
 
     print("🚀 Bootstrapping Telegram Music Bot...")
     
