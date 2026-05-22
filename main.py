@@ -28,7 +28,7 @@ import pyrogram.utils
 # Dynamic hotpatch to support expanded Telegram Chat/Channel IDs
 def custom_get_peer_type(peer_id: int) -> str:
     if peer_id < 0:
-        if str(peer_id).startswith("-100"):
+        if peer_id <= -1000000000000:
             return "channel"
         else:
             return "chat"
@@ -40,8 +40,20 @@ pyrogram.utils.get_peer_type = custom_get_peer_type
 pyrogram.utils.MIN_CHANNEL_ID = -100999999999999
 pyrogram.utils.MIN_CHAT_ID = -99999999999999
 
+# Dynamic hotpatch to force port 80 for production MTProto connections
+import pyrogram.session.internals.data_center
+original_data_center_new = pyrogram.session.internals.data_center.DataCenter.__new__
+
+def custom_data_center_new(cls, dc_id: int, test_mode: bool, ipv6: bool, media: bool):
+    ip, port = original_data_center_new(cls, dc_id, test_mode, ipv6, media)
+    if not test_mode:
+        port = 80
+    return ip, port
+
+pyrogram.session.internals.data_center.DataCenter.__new__ = custom_data_center_new
+
 import logging
-from pyrogram import Client
+from pyrogram import Client, ContinuePropagation
 from pytgcalls import PyTgCalls
 from pytgcalls.types import Update
 
@@ -62,6 +74,7 @@ call_py = None
 
 async def log_all_messages(client, message):
     logger.info(f"✨ DIRECT MESSAGE RECEIVED: {message.text or '[Media/None]'} from {message.from_user.id if message.from_user else 'unknown'}")
+    raise ContinuePropagation
 
 
 from pytgcalls.types import StreamEnded
@@ -107,6 +120,9 @@ async def main():
 
     print("🚀 Instantiating Telegram Clients within the active event loop...")
     
+    import os
+    workdir = os.path.dirname(os.path.abspath(__file__))
+
     # 1. Initialize Bot Client inside the loop to avoid loop mismatch issues
     bot_client = Client(
         name="MusicBot",
@@ -114,7 +130,8 @@ async def main():
         api_hash=config.API_HASH,
         bot_token=config.BOT_TOKEN,
         plugins=dict(root="handlers"),
-        in_memory=False
+        in_memory=False,
+        workdir=workdir
     )
     
     # Register dynamic messaging logging handler
@@ -127,14 +144,9 @@ async def main():
         api_id=config.API_ID,
         api_hash=config.API_HASH,
         session_string=config.SESSION_STRING,
-        in_memory=False
+        in_memory=False,
+        workdir=workdir
     )
-
-    # 3. Initialize PyTgCalls inside the loop
-    call_py = PyTgCalls(assistant_client)
-    
-    # Register stream end update callback dynamically
-    call_py.on_update()(stream_end_callback)
 
     print("🚀 Bootstrapping Telegram Music Bot...")
     
@@ -162,6 +174,12 @@ async def main():
             
     assistant_me = await assistant_client.get_me()
     print(f"✅ Assistant User Client initialized as @{assistant_me.username or assistant_me.first_name}")
+    
+    # 3. Initialize PyTgCalls inside the loop after the assistant client is started
+    call_py = PyTgCalls(assistant_client)
+    
+    # Register stream end update callback dynamically
+    call_py.on_update()(stream_end_callback)
     
     # Share references with play handler
     from handlers.play import init_clients
