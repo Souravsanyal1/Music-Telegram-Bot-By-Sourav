@@ -188,41 +188,25 @@ async def play_command(client: Client, message: Message):
             "অথবা: <code>/play https://youtu.be/dQw4w9WgXcQ</code>"
         )
         
-    query = " ".join(message.command[1:])
+    raw_query = " ".join(message.command[1:])
     
     # Save active chat details to MongoDB database asynchronously
     await add_chat(chat_id, message.chat.title)
     
-    # Initial status message
-    status_msg = await message.reply_text("🔍 <b>ইউটিউবে খোঁজা হচ্ছে...</b> দয়া করে অপেক্ষা করুন।")
-    
-    song_info = None
-    # Check if query is a YouTube URL
-    if "youtube.com/" in query or "youtu.be/" in query:
-        # Direct URL extraction
-        extracted = await extract_audio_stream(query)
-        if extracted:
-            song_info = {
-                "title": extracted["title"],
-                "duration": extracted["duration"],
-                "duration_str": extracted["duration_str"],
-                "thumbnail": extracted["thumbnail"],
-                "url": extracted["url"],
-                "channel": extracted["channel"],
-            }
+    # Parse multiple queries separated by | or newlines
+    queries = []
+    if "|" in raw_query:
+        queries = [q.strip() for q in raw_query.split("|") if q.strip()]
+    elif "\n" in raw_query:
+        queries = [q.strip() for q in raw_query.split("\n") if q.strip()]
     else:
-        # Search by name
-        results = await search_youtube(query, limit=1)
-        if results:
-            song_info = results[0]
+        # Check if multiple space-separated YouTube/Music links are provided
+        parts = [p.strip() for p in raw_query.split(" ") if p.strip()]
+        if len(parts) > 1 and all(p.startswith("http") for p in parts):
+            queries = parts
+        else:
+            queries = [raw_query]
             
-    if not song_info:
-        return await status_msg.edit("❌ <b>দুঃখিত!</b> আপনার কাঙ্ক্ষিত গানটি খুঁজে পাওয়া যায়নি।")
-        
-    # Append requester details
-    song_info["requester"] = user.first_name if user else "Unknown User"
-    song_info["requester_mention"] = user.mention if user else "Unknown User"
-    
     # Setup queue for this group if not already present
     if chat_id not in db_queue:
         db_queue[chat_id] = {
@@ -234,23 +218,84 @@ async def play_command(client: Client, message: Message):
         
     group_data = db_queue[chat_id]
     
-    # Check if a song is already playing in the voice chat
-    if chat_id in active_calls or group_data["current_song"] is not None:
-        # Add to queue
+    # Initial status message
+    status_msg = await message.reply_text("🔍 <b>অনুরোধ করা গানগুলো বিশ্লেষণ করা হচ্ছে...</b> দয়া করে অপেক্ষা করুন।")
+    
+    was_idle = (chat_id not in active_calls and group_data["current_song"] is None)
+    added_songs = []
+    failed_songs = []
+    
+    for q in queries:
+        song_info = None
+        # Check if query is a YouTube URL
+        if "youtube.com/" in q or "youtu.be/" in q:
+            # Direct URL extraction
+            extracted = await extract_audio_stream(q)
+            if extracted:
+                song_info = {
+                    "title": extracted["title"],
+                    "duration": extracted["duration"],
+                    "duration_str": extracted["duration_str"],
+                    "thumbnail": extracted["thumbnail"],
+                    "url": extracted["url"],
+                    "channel": extracted["channel"],
+                }
+        else:
+            # Search by name
+            results = await search_youtube(q, limit=1)
+            if results:
+                song_info = results[0]
+                
+        if not song_info:
+            failed_songs.append(q)
+            continue
+            
+        # Append requester details
+        song_info["requester"] = user.first_name if user else "Unknown User"
+        song_info["requester_mention"] = user.mention if user else "Unknown User"
+        
+        # Append to queue first
         group_data["queue"].append(song_info)
-        queue_pos = len(group_data["queue"])
-        await status_msg.delete()
-        await message.reply_text(
-            f"➕ <b>কিউতে যোগ করা হয়েছে!</b>\n\n"
-            f"🎵 <b>গান:</b> <code>{song_info['title']}</code>\n"
-            f"🔢 <b>অবস্থান:</b> <code>#{queue_pos}</code>\n"
-            f"👤 <b>অনুরোধকারী:</b> {song_info['requester_mention']}"
-        )
-    else:
-        # Start playback directly
-        await status_msg.delete()
-        group_data["queue"].append(song_info)
+        added_songs.append(song_info)
+        
+    # Start playing if the player was idle and we added at least one song
+    if was_idle and group_data["queue"]:
         await play_next_song(chat_id)
+            
+    # Delete status waiting card
+    try:
+        await status_msg.delete()
+    except Exception:
+        pass
+        
+    if added_songs:
+        if len(added_songs) == 1:
+            song = added_songs[0]
+            # If it was queued (meaning it is not the currently active song playing right now)
+            is_currently_playing = (group_data["current_song"] and group_data["current_song"]["url"] == song["url"])
+            if is_currently_playing and len(group_data["queue"]) == 0:
+                pass
+            else:
+                queue_pos = len(group_data["queue"])
+                await message.reply_text(
+                    f"➕ <b>কিউতে যোগ করা হয়েছে!</b>\n\n"
+                    f"🎵 <b>গান:</b> <code>{song['title']}</code>\n"
+                    f"🔢 <b>অবস্থান:</b> <code>#{queue_pos}</code>\n"
+                    f"👤 <b>অনুরোধকারী:</b> {song['requester_mention']}"
+                )
+        else:
+            # Multiple songs added successfully
+            summary_text = "➕ <b>একাধিক গান কিউতে যোগ করা হয়েছে!</b>\n\n"
+            for idx, song in enumerate(added_songs, start=1):
+                summary_text += f"<code>{idx}.</code> <a href='{song['url']}'>{song['title']}</a>\n"
+            summary_text += f"\n👤 <b>অনুরোধকারী:</b> {user.mention if user else 'Unknown User'}"
+            await message.reply_text(summary_text, disable_web_page_preview=True)
+            
+    if failed_songs:
+        fail_text = "❌ <b>নিম্নলিখিত গানগুলো খুঁজে পাওয়া যায়নি:</b>\n\n"
+        for idx, q in enumerate(failed_songs, start=1):
+            fail_text += f"<code>{idx}.</code> <i>{q}</i>\n"
+        await message.reply_text(fail_text)
 
 
 @Client.on_message(filters.command("queue") & filters.group)
