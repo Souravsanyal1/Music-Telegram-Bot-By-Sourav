@@ -4,10 +4,10 @@ import config
 import logging
 
 # Import queue states and controllers from handlers.play
+import handlers.play
 from handlers.play import (
     db_queue,
     active_calls,
-    pytgcalls_client,
     play_next_song,
 )
 from utils.inline import get_player_buttons
@@ -44,7 +44,7 @@ async def pause_command(client: Client, message: Message):
         return await message.reply_text("❌ <b>অনুমতি নেই!</b> এই অ্যাকশনটি শুধুমাত্র গ্রুপ অ্যাডমিন বা সুডো ইউজারদের জন্য।")
         
     try:
-        await pytgcalls_client.pause(chat_id)
+        await handlers.play.pytgcalls_client.pause(chat_id)
         await message.reply_text("⏸ <b>মিউজিক স্ট্রিমিং সাময়িকভাবে বন্ধ (Paused) করা হয়েছে।</b>")
         
         # Dynamically update inline deck keyboard if active card message ID exists
@@ -74,7 +74,7 @@ async def resume_command(client: Client, message: Message):
         return await message.reply_text("❌ <b>অনুমতি নেই!</b> এই অ্যাকশনটি শুধুমাত্র গ্রুপ অ্যাডমিন বা সুডো ইউজারদের জন্য।")
         
     try:
-        await pytgcalls_client.resume(chat_id)
+        await handlers.play.pytgcalls_client.resume(chat_id)
         await message.reply_text("▶️ <b>পজ করা গানটি পুনরায় প্লে (Resumed) করা হয়েছে।</b>")
         
         if chat_id in db_queue and db_queue[chat_id]["active_msg_id"]:
@@ -119,7 +119,7 @@ async def stop_command(client: Client, message: Message):
         return await message.reply_text("❌ <b>অনুমতি নেই!</b> এই অ্যাকশনটি শুধুমাত্র গ্রুপ অ্যাডমিন বা সুডো ইউজারদের জন্য।")
         
     try:
-        await pytgcalls_client.leave_call(chat_id)
+        await handlers.play.pytgcalls_client.leave_call(chat_id)
         if chat_id in active_calls:
             active_calls.remove(chat_id)
             
@@ -186,7 +186,7 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
 
     if data == "c_pause":
         try:
-            await pytgcalls_client.pause(chat_id)
+            await handlers.play.pytgcalls_client.pause(chat_id)
             await callback_query.answer("⏸ মিউজিক পজ করা হয়েছে।", show_alert=False)
             await callback_query.message.edit_reply_markup(
                 reply_markup=get_player_buttons(is_paused=True, is_looping=group_data["is_looping"])
@@ -197,7 +197,7 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
 
     elif data == "c_resume":
         try:
-            await pytgcalls_client.resume(chat_id)
+            await handlers.play.pytgcalls_client.resume(chat_id)
             await callback_query.answer("▶️ মিউজিক রিজিউম করা হয়েছে।", show_alert=False)
             await callback_query.message.edit_reply_markup(
                 reply_markup=get_player_buttons(is_paused=False, is_looping=group_data["is_looping"])
@@ -217,7 +217,7 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
 
     elif data == "c_stop":
         try:
-            await pytgcalls_client.leave_call(chat_id)
+            await handlers.play.pytgcalls_client.leave_call(chat_id)
             if chat_id in active_calls:
                 active_calls.remove(chat_id)
             group_data["queue"] = []
