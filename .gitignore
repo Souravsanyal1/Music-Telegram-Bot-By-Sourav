@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Configuration and Secrets (CRITICAL)
+.env
+.env.*
+
+# Telegram Session Database Files
+*.session
+*.session-journal
+
+# Temporary Media / Thumbnails
+*.png
+*.jpg
+*.jpeg
+
+# IDE settings
+.idea/
+.vscode/
+
+# Local logs
+*.log
