@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  musicbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music_telegram_bot
+    restart: always
+    env_file:
+      - .env
+    # No volume mapping needed so that it remains completely self-contained and avoids local cache conflicts.

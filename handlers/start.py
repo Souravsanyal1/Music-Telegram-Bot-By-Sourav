@@ -21,7 +21,8 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
         except UserNotParticipant:
             return False
         except Exception as e:
-            logger.error(f"Error checking force subscription (channel) for {user_id}: {e}")
+            # ValueError/KeyError from in_memory peer cache — allow user through
+            logger.warning(f"Force sub channel check skipped for {user_id}: {e}")
 
     # Check force group (if configured)
     if config.FORCE_SUB_GROUP:
@@ -32,7 +33,8 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
         except UserNotParticipant:
             return False
         except Exception as e:
-            logger.error(f"Error checking force subscription (group) for {user_id}: {e}")
+            # ValueError/KeyError from in_memory peer cache — allow user through
+            logger.warning(f"Force sub group check skipped for {user_id}: {e}")
 
     return True
 
