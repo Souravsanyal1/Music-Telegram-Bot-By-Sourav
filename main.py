@@ -54,7 +54,7 @@ pyrogram.session.internals.data_center.DataCenter.__new__ = custom_data_center_n
 
 import logging
 from pyrogram import Client, ContinuePropagation
-from pytgcalls import PyTgCalls
+from pytgcalls import PyTgCalls, filters
 from pytgcalls.types import Update
 
 import config
@@ -179,7 +179,7 @@ async def main():
     call_py = PyTgCalls(assistant_client)
     
     # Register stream end update callback dynamically
-    call_py.on_update()(stream_end_callback)
+    call_py.on_update(filters.stream_end())(stream_end_callback)
     
     # Share references with play handler
     from handlers.play import init_clients

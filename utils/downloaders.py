@@ -47,7 +47,7 @@ async def search_youtube(query: str, limit: int = 1) -> list:
                         "title": r.get("title", "Unknown Title"),
                         "duration": duration,
                         "duration_str": duration_str,
-                        "thumbnail": r.get("thumbnail"),
+                        "thumbnail": r.get("thumbnail") or (r.get("thumbnails")[0]["url"] if r.get("thumbnails") else None),
                         "url": r.get("url") or f"https://www.youtube.com/watch?v={r.get('id')}",
                         "channel": r.get("uploader", "Unknown Channel"),
                     })
