@@ -35,6 +35,17 @@ if FORCE_SUB_CHANNEL:
 # Custom Invite Link for Private Groups/Channels (Optional)
 FORCE_SUB_LINK = os.getenv("FORCE_SUB_LINK")
 
+# Force Sub Group (Optional second requirement)
+FORCE_SUB_GROUP = os.getenv("FORCE_SUB_GROUP")
+if FORCE_SUB_GROUP:
+    FORCE_SUB_GROUP = FORCE_SUB_GROUP.strip()
+    if FORCE_SUB_GROUP.startswith("-") and FORCE_SUB_GROUP[1:].isdigit():
+        FORCE_SUB_GROUP = int(FORCE_SUB_GROUP)
+    elif FORCE_SUB_GROUP.isdigit():
+        FORCE_SUB_GROUP = int(FORCE_SUB_GROUP)
+
+FORCE_SUB_GROUP_LINK = os.getenv("FORCE_SUB_GROUP_LINK")
+
 # Sane checks to help user debug missing configs on boot
 def verify_config():
     missing = []

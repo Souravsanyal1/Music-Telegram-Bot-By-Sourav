@@ -11,41 +11,51 @@ logger = logging.getLogger("MusicBot.Start")
 # FORCE SUBSCRIPTION SYSTEM HELPERS
 
 async def check_force_sub(client: Client, user_id: int) -> bool:
-    """Checks if the user is a member of the configured force channel/group."""
-    if not config.FORCE_SUB_CHANNEL:
-        return True
-    try:
-        chat_member = await client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
-        # Left or kicked users are not considered members
-        if chat_member.status in ["left", "kicked"]:
+    """Checks if the user is a member of all configured force channel/groups."""
+    # Check main channel
+    if config.FORCE_SUB_CHANNEL:
+        try:
+            chat_member = await client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
+            if chat_member.status in ["left", "kicked"]:
+                return False
+        except UserNotParticipant:
             return False
-        return True
-    except UserNotParticipant:
-        return False
-    except Exception as e:
-        logger.error(f"Error checking force subscription for {user_id}: {e}")
-        # Allow entry in case of invalid configs or bot permissions to prevent freezing
-        return True
+        except Exception as e:
+            logger.error(f"Error checking force subscription (channel) for {user_id}: {e}")
+
+    # Check force group (if configured)
+    if config.FORCE_SUB_GROUP:
+        try:
+            chat_member = await client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
+            if chat_member.status in ["left", "kicked"]:
+                return False
+        except UserNotParticipant:
+            return False
+        except Exception as e:
+            logger.error(f"Error checking force subscription (group) for {user_id}: {e}")
+
+    return True
 
 
 def get_force_sub_markup() -> InlineKeyboardMarkup:
-    """Returns an inline keyboard prompting the user to join the update channel/group."""
-    if config.FORCE_SUB_LINK:
-        channel_link = config.FORCE_SUB_LINK.strip()
-    else:
-        channel_link = str(config.FORCE_SUB_CHANNEL)
-        # Generate direct Telegram join link dynamically
-        if not (channel_link.startswith("https://") or channel_link.startswith("t.me/")):
-            channel_link = f"https://t.me/{channel_link.replace('@', '')}"
-        
-    buttons = [
-        [
-            InlineKeyboardButton("📢 Join Channel / Group", url=channel_link)
-        ],
-        [
-            InlineKeyboardButton("🔄 Verify / Try Again", callback_data="c_verify_sub")
-        ]
-    ]
+    """Returns an inline keyboard prompting the user to join the update channel and/or group."""
+    buttons = []
+
+    # Add channel join button if configured
+    if config.FORCE_SUB_CHANNEL:
+        channel_link = config.FORCE_SUB_LINK or str(config.FORCE_SUB_CHANNEL)
+        if not (str(channel_link).startswith("https://") or str(channel_link).startswith("t.me/")):
+            channel_link = f"https://t.me/{str(channel_link).replace('@', '')}"
+        buttons.append([InlineKeyboardButton("📢 Join Channel", url=channel_link)])
+
+    # Add group join button if configured
+    if config.FORCE_SUB_GROUP:
+        group_link = config.FORCE_SUB_GROUP_LINK or str(config.FORCE_SUB_GROUP)
+        if not (str(group_link).startswith("https://") or str(group_link).startswith("t.me/")):
+            group_link = f"https://t.me/{str(group_link).replace('@', '')}"
+        buttons.append([InlineKeyboardButton("👥 Join Group", url=group_link)])
+
+    buttons.append([InlineKeyboardButton("🔄 Verify / Try Again", callback_data="c_verify_sub")])
     return InlineKeyboardMarkup(buttons)
 
 
