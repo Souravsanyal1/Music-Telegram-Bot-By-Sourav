@@ -21,8 +21,17 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
         except UserNotParticipant:
             return False
         except Exception as e:
-            # ValueError/KeyError from in_memory peer cache — allow user through
-            logger.warning(f"Force sub channel check skipped for {user_id}: {e}")
+            # Bot client failed (e.g. PeerIdInvalid / ValueError due to empty cache)
+            logger.warning(f"Force sub channel check for bot failed: {e}. Falling back to Assistant Client.")
+            try:
+                from main import assistant_client
+                chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
+                if chat_member.status in ["left", "kicked"]:
+                    return False
+            except UserNotParticipant:
+                return False
+            except Exception as assistant_err:
+                logger.warning(f"Force sub channel check skipped for {user_id} (both bot and assistant failed): {assistant_err}")
 
     # Check force group (if configured)
     if config.FORCE_SUB_GROUP:
@@ -33,8 +42,17 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
         except UserNotParticipant:
             return False
         except Exception as e:
-            # ValueError/KeyError from in_memory peer cache — allow user through
-            logger.warning(f"Force sub group check skipped for {user_id}: {e}")
+            # Bot client failed (e.g. PeerIdInvalid / ValueError due to empty cache)
+            logger.warning(f"Force sub group check for bot failed: {e}. Falling back to Assistant Client.")
+            try:
+                from main import assistant_client
+                chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
+                if chat_member.status in ["left", "kicked"]:
+                    return False
+            except UserNotParticipant:
+                return False
+            except Exception as assistant_err:
+                logger.warning(f"Force sub group check skipped for {user_id} (both bot and assistant failed): {assistant_err}")
 
     return True
 

@@ -32,8 +32,13 @@ bot_client = Client(
     api_hash=config.API_HASH,
     bot_token=config.BOT_TOKEN,
     plugins=dict(root="handlers"),
-    in_memory=True
+    in_memory=False
 )
+
+@bot_client.on_message(group=-1)
+async def log_all_messages(client, message):
+    logger.info(f"✨ DIRECT MESSAGE RECEIVED: {message.text or '[Media/None]'} from {message.from_user.id if message.from_user else 'unknown'}")
+
 
 # 2. Initialize Assistant Account User Client
 assistant_client = Client(
@@ -41,7 +46,7 @@ assistant_client = Client(
     api_id=config.API_ID,
     api_hash=config.API_HASH,
     session_string=config.SESSION_STRING,
-    in_memory=True
+    in_memory=False
 )
 
 # 3. Initialize PyTgCalls with Assistant User Client
