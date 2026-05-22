@@ -71,6 +71,24 @@ async def main():
         logger.error(e)
         return
         
+    # Start health check server if PORT is provided (for Render / Heroku compatibility)
+    import os
+    port = os.getenv("PORT")
+    if port:
+        try:
+            from aiohttp import web
+            async def health_check(request):
+                return web.Response(text="Bot is running!")
+            app = web.Application()
+            app.router.add_get("/", health_check)
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, "0.0.0.0", int(port))
+            await site.start()
+            print(f"✅ Web health check server started on port {port}")
+        except Exception as e:
+            print(f"⚠️ Failed to start health check server: {e}")
+
     print("🚀 Bootstrapping Telegram Music Bot...")
     
     # Start bot
