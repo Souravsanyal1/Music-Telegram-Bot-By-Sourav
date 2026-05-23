@@ -19,7 +19,7 @@ def get_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
         
         # Check linux/unix fallback paths just in case of VPS deployments
         linux_fallbacks = [
-            f"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/TTF/DejaVuSans.ttf",
         ]
         for path in linux_fallbacks:
@@ -51,168 +51,226 @@ async def generate_thumbnail(
     output_filename: str = "thumbnail.png"
 ) -> str:
     """
-    Downloads the YouTube video thumbnail, applies a premium dark blurred glassmorphism overlay,
-    crops a circular profile card in the center with a high-fidelity white border ring, and draws
-    polished music player metadata and progress bar.
+    Generates an ultra-premium glassmorphic player card dashboard.
+    Supports dynamic local image fallback (e.g., bot profile photo) or remote HTTP downloads.
     """
     temp_thumb = f"temp_{output_filename}"
+    use_local = False
     
-    # 1. Download YouTube thumbnail asynchronously
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(thumbnail_url) as resp:
-                if resp.status == 200:
-                    async with aiofiles.open(temp_thumb, mode="wb") as f:
-                        await f.write(await resp.read())
-                else:
-                    logger.warning(f"Failed to fetch thumbnail ({resp.status}). Using fallback backdrop.")
-                    temp_thumb = None
-    except Exception as e:
-        logger.error(f"Error downloading thumbnail: {e}")
+    # 1. Load or download the thumbnail artwork
+    if thumbnail_url and os.path.exists(thumbnail_url):
+        temp_thumb = thumbnail_url
+        use_local = True
+        logger.info(f"Using local file for card artwork: {thumbnail_url}")
+    elif thumbnail_url and (thumbnail_url.startswith("http://") or thumbnail_url.startswith("https://")):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(thumbnail_url) as resp:
+                    if resp.status == 200:
+                        async with aiofiles.open(temp_thumb, mode="wb") as f:
+                            await f.write(await resp.read())
+                        logger.info("Successfully downloaded remote YouTube thumbnail.")
+                    else:
+                        logger.warning(f"Failed to fetch thumbnail ({resp.status}). Using fallback backdrop.")
+                        temp_thumb = None
+        except Exception as e:
+            logger.error(f"Error downloading thumbnail: {e}")
+            temp_thumb = None
+    else:
         temp_thumb = None
 
-    # 2. Setup Base Images
-    # Canvas Size: 1280x720 (Standard 720p HD Card)
+    # 2. Setup Dimensions
     width, height = 1280, 720
     
     try:
+        # Load source image or create a fallback colorful gradient base
         if temp_thumb and os.path.exists(temp_thumb):
             img_src = Image.open(temp_thumb)
         else:
-            # Fallback aesthetic dark-purple canvas
-            img_src = Image.new("RGB", (width, height), (32, 10, 50))
+            # Fallback deep-indigo default canvas
+            img_src = Image.new("RGB", (width, height), (22, 16, 45))
             
-        # 3. Create Blurred Glassmorphism Backdrop
-        # Resize source image to fill canvas, crop, and apply heavy Gaussian Blur
+        # 3. Create Ambient Glow Background
         bg = img_src.resize((width, height), Image.Resampling.LANCZOS)
-        bg = bg.filter(ImageFilter.GaussianBlur(radius=25))
-        
-        # Draw semi-transparent dark overlay to enhance text readability
-        overlay = Image.new("RGBA", (width, height), (15, 10, 20, 160))
+        bg = bg.filter(ImageFilter.GaussianBlur(radius=30))
         bg = bg.convert("RGBA")
-        bg = Image.alpha_composite(bg, overlay)
         
-        # 4. Create Circular Cropped Album/Video Art
-        # Size of circular image: 340x340 px
-        circle_size = 340
-        thumb_resized = img_src.resize((circle_size, circle_size), Image.Resampling.LANCZOS)
+        # Darkening overlay to ensure metadata pops
+        dark_overlay = Image.new("RGBA", (width, height), (10, 10, 18, 195))
+        bg = Image.alpha_composite(bg, dark_overlay)
         
-        # Generate alpha mask for perfect circle
-        mask = Image.new("L", (circle_size, circle_size), 0)
-        mask_draw = ImageDraw.Draw(mask)
-        mask_draw.ellipse((0, 0, circle_size, circle_size), fill=255)
+        # Draw high-fidelity neon ambient glow orbs behind the glass panel
+        glow_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        glow_draw = ImageDraw.Draw(glow_layer)
+        # Left-top glowing cyan orb
+        glow_draw.ellipse((50, -80, 500, 370), fill=(0, 229, 255, 90))
+        # Right-bottom glowing purple orb
+        glow_draw.ellipse((800, 380, 1250, 830), fill=(180, 120, 255, 90))
         
-        # Crop and paste circle in center-top: (1280 - 340) // 2 = 470
-        x_offset = (width - circle_size) // 2 # 470
-        y_offset = 60
+        # Apply heavy blur to orbs to make them dreamy and soft
+        glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(radius=65))
+        bg = Image.alpha_composite(bg, glow_layer)
         
-        bg.paste(thumb_resized, (x_offset, y_offset), mask=mask)
+        # 4. Draw Center Frosted-Glass Card
+        # Panel bounds: (80, 80) to (1200, 640) -> Width: 1120, Height: 560
+        glass_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        glass_draw = ImageDraw.Draw(glass_layer)
         
-        # Draw high-fidelity white circular border ring
+        glass_draw.rounded_rectangle(
+            (80, 80, 1200, 640),
+            radius=30,
+            fill=(15, 15, 27, 215),  # Frosted glass core
+            outline=(255, 255, 255, 38),  # Thin elegant white border
+            width=2
+        )
+        bg = Image.alpha_composite(bg, glass_layer)
+        
+        # 5. Crop and Draw Rounded Square Album Artwork (Left Column)
+        # Position: (130, 130) to (470, 470) -> Size: 340x340 px
+        art_size = 340
+        thumb_resized = img_src.resize((art_size, art_size), Image.Resampling.LANCZOS)
+        
+        # Rounded mask for artwork
+        art_mask = Image.new("L", (art_size, art_size), 0)
+        mask_draw = ImageDraw.Draw(art_mask)
+        mask_draw.rounded_rectangle((0, 0, art_size, art_size), radius=28, fill=255)
+        
+        bg.paste(thumb_resized, (130, 130), mask=art_mask)
+        
+        # Draw high-fidelity double border for the album artwork
         draw = ImageDraw.Draw(bg)
-        border_width = 8
-        draw.ellipse(
-            (
-                x_offset - border_width // 2,
-                y_offset - border_width // 2,
-                x_offset + circle_size + border_width // 2,
-                y_offset + circle_size + border_width // 2,
-            ),
-            outline=(255, 255, 255, 255),
-            width=border_width,
+        # Inner white trim
+        draw.rounded_rectangle(
+            (130, 130, 470, 470),
+            radius=28,
+            outline=(255, 255, 255, 100),
+            width=2
+        )
+        # Outer vibrant glowing purple border
+        draw.rounded_rectangle(
+            (126, 126, 474, 474),
+            radius=30,
+            outline=(180, 120, 255, 200),
+            width=3
         )
         
-        # 5. Load Premium Typography
-        font_title = get_font(size=36, bold=True)
-        font_meta = get_font(size=24, bold=False)
-        font_bold = get_font(size=24, bold=True)
+        # 6. Load Premium Typography
+        font_title = get_font(size=38, bold=True)
+        font_channel = get_font(size=22, bold=False)
+        font_meta = get_font(size=20, bold=False)
+        font_meta_bold = get_font(size=20, bold=True)
+        font_time = get_font(size=18, bold=False)
+        font_badge = get_font(size=14, bold=True)
+        font_ctrl = get_font(size=26, bold=False)
         
-        # 6. Render Song Metadata
-        # Truncate Title to fit within safe bounds
-        truncated_title = truncate_text(title, max_width=1000, font=font_title)
+        # 7. Render Metadata Interface (Right Column)
+        # Column X alignment starts at 520, Y ranges from 130 to 590
         
-        # Center-align Title Text
-        title_width = font_title.getlength(truncated_title)
-        draw.text(
-            ((width - title_width) // 2, 430),
-            truncated_title,
-            fill=(255, 255, 255, 255),
-            font=font_title,
+        # A. Streaming Pill Badge
+        badge_x1, badge_y1, badge_x2, badge_y2 = 520, 135, 690, 170
+        draw.rounded_rectangle(
+            (badge_x1, badge_y1, badge_x2, badge_y2),
+            radius=18,
+            fill=(180, 120, 255, 35),
+            outline=(180, 120, 255, 180),
+            width=1
         )
+        draw.text((540, 143), "● NOW PLAYING", fill=(195, 145, 255, 255), font=font_badge)
         
-        # Channel/Artist info
-        truncated_channel = truncate_text(f"by {channel}", max_width=800, font=font_meta)
-        channel_width = font_meta.getlength(truncated_channel)
-        draw.text(
-            ((width - channel_width) // 2, 480),
-            truncated_channel,
-            fill=(200, 200, 220, 255),
-            font=font_meta,
-        )
-
-        # "Duration" and "Requested By" aligned side-by-side or stacked cleanly
-        req_text = f"Requested By: "
-        req_val = f"{requester_name}"
-        dur_text = f"Duration: "
-        dur_val = f"{duration_str}"
+        # B. Track Title
+        truncated_title = truncate_text(title, max_width=610, font=font_title)
+        draw.text((520, 190), truncated_title, fill=(255, 255, 255, 255), font=font_title)
         
-        # Draw bottom-left: Requested by
-        draw.text((100, 540), req_text, fill=(230, 230, 250, 200), font=font_meta)
-        req_text_width = font_meta.getlength(req_text)
-        draw.text((100 + req_text_width, 540), req_val, fill=(195, 145, 255, 255), font=font_bold)
+        # C. Artist/Channel Info
+        truncated_channel = truncate_text(f"by {channel}", max_width=610, font=font_channel)
+        draw.text((520, 255), truncated_channel, fill=(0, 229, 255, 255), font=font_channel)
         
-        # Draw bottom-right: Duration
-        dur_full_text = f"{dur_text}{dur_val}"
-        dur_width = font_bold.getlength(dur_full_text)
-        draw.text((width - 100 - dur_width, 540), dur_text, fill=(230, 230, 250, 200), font=font_meta)
-        dur_label_width = font_meta.getlength(dur_text)
-        draw.text((width - 100 - dur_width + dur_label_width, 540), dur_val, fill=(255, 255, 255, 255), font=font_bold)
+        # D. Horizontal Thin Divider Line
+        draw.line((520, 305, 1150, 305), fill=(255, 255, 255, 25), width=1)
         
-        # 7. Render Aesthetics Audio Progress Bar
-        bar_x_start = 100
-        bar_x_end = width - 100 # 1180
-        bar_y = 610
-        bar_width = bar_x_end - bar_x_start # 1080
+        # E. Metadata Row (Requester & Duration Side-By-Side)
+        # Left side: Requester
+        draw.text((520, 330), "Requester: ", fill=(200, 200, 220, 180), font=font_meta)
+        req_lbl_w = font_meta.getlength("Requester: ")
+        truncated_req = truncate_text(requester_name, max_width=220, font=font_meta_bold)
+        draw.text((520 + req_lbl_w, 330), truncated_req, fill=(195, 145, 255, 255), font=font_meta_bold)
         
-        # Base bar (gray track)
-        draw.line((bar_x_start, bar_y, bar_x_end, bar_y), fill=(100, 100, 110, 255), width=6)
+        # Right side: Duration
+        dur_val_w = font_meta_bold.getlength(duration_str)
+        dur_lbl_w = font_meta.getlength("Duration: ")
+        draw.text((1150 - dur_val_w - dur_lbl_w, 330), "Duration: ", fill=(200, 200, 220, 180), font=font_meta)
+        draw.text((1150 - dur_val_w, 330), duration_str, fill=(255, 255, 255, 255), font=font_meta_bold)
         
-        # progress simulated at 40% for visual flavor
+        # F. Seek bar progress track & dynamic values
+        bar_x_start = 520
+        bar_x_end = 1150
+        bar_y = 415
+        bar_width = bar_x_end - bar_x_start
+        
+        # Standard gray progress line
+        draw.line((bar_x_start, bar_y, bar_x_end, bar_y), fill=(55, 55, 75, 255), width=6)
+        
+        # Simulate active track progress (fixed at 40% for visual design)
         progress_ratio = 0.40
         progress_x = bar_x_start + int(bar_width * progress_ratio)
         
-        # Played bar (purple/white progress track)
+        # Active vibrant purple highlight track
         draw.line((bar_x_start, bar_y, progress_x, bar_y), fill=(180, 120, 255, 255), width=6)
         
-        # Progress Dot "O" circle overlay
-        dot_radius = 8
+        # Sleek progress indicator dot
+        dot_r = 8
         draw.ellipse(
-            (progress_x - dot_radius, bar_y - dot_radius, progress_x + dot_radius, bar_y + dot_radius),
+            (progress_x - dot_r, bar_y - dot_r, progress_x + dot_r, bar_y + dot_r),
             fill=(255, 255, 255, 255),
             outline=(180, 120, 255, 255),
-            width=2,
+            width=2
         )
         
-        # Left timestamp (elapsed)
-        elapsed_str = "01:34"
-        draw.text((bar_x_start, bar_y + 15), elapsed_str, fill=(180, 180, 200, 255), font=font_meta)
+        # Calculate dynamic matching elapsed time based on progress_ratio (40%)
+        try:
+            parts = [int(p) for p in duration_str.split(":")]
+            if len(parts) == 2:
+                tot_sec = parts[0] * 60 + parts[1]
+            elif len(parts) == 3:
+                tot_sec = parts[0] * 3600 + parts[1] * 60 + parts[2]
+            else:
+                tot_sec = 240
+            
+            elapsed_sec = int(tot_sec * progress_ratio)
+            el_min, el_sec = divmod(elapsed_sec, 60)
+            el_hr, el_min = divmod(el_min, 60)
+            if el_hr > 0:
+                elapsed_str = f"{el_hr:02d}:{el_min:02d}:{el_sec:02d}"
+            else:
+                elapsed_str = f"{el_min:02d}:{el_sec:02d}"
+        except Exception:
+            elapsed_str = "01:34"
+            
+        # Draw Seek bar timestamps
+        draw.text((bar_x_start, bar_y + 12), elapsed_str, fill=(160, 160, 180, 255), font=font_time)
         
-        # Right timestamp (total duration)
-        draw.text((bar_x_end - font_meta.getlength(duration_str), bar_y + 15), duration_str, fill=(180, 180, 200, 255), font=font_meta)
+        total_str_w = font_time.getlength(duration_str)
+        draw.text((bar_x_end - total_str_w, bar_y + 12), duration_str, fill=(160, 160, 180, 255), font=font_time)
         
-        # 8. Save output
+        # G. Premium Mock Deck Controls
+        ctrl_text = "⏮     ▶     ⏭     🔁"
+        ctrl_w = font_ctrl.getlength(ctrl_text)
+        ctrl_x = bar_x_start + (bar_width - ctrl_w) // 2
+        draw.text((ctrl_x, 485), ctrl_text, fill=(200, 200, 220, 220), font=font_ctrl)
+        
+        # 8. Save output file
         bg.convert("RGB").save(output_filename, "PNG")
-        logger.info(f"🎨 Successfully generated beautiful thumbnail card: {output_filename}")
+        logger.info(f"🎨 Generated ultra-premium player card: {output_filename}")
         
     except Exception as e:
         logger.error(f"Error compiling thumbnail image: {e}", exc_info=True)
-        # Create a simple emergency visual
-        fallback_img = Image.new("RGB", (width, height), (32, 10, 50))
+        # Create plain fallback visual
+        fallback_img = Image.new("RGB", (width, height), (22, 16, 45))
         fallback_img.save(output_filename, "PNG")
         
     finally:
-        # Cleanup temporary downloaded image
-        if temp_thumb and os.path.exists(temp_thumb):
+        # Clean up temporary downloaded file
+        if not use_local and temp_thumb and os.path.exists(temp_thumb):
             try:
                 os.remove(temp_thumb)
             except Exception:

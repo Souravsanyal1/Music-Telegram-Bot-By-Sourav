@@ -134,10 +134,27 @@ async def play_next_song(chat_id: int):
 
     # Dynamic Card Generation
     thumb_path = f"thumb_{chat_id}.png"
+    
+    # Check if thumbnail exists, if not fall back to bot's profile photo
+    thumb_url = extracted_data.get("thumbnail")
+    if not thumb_url:
+        bot_photo_path = "bot_profile.png"
+        if not os.path.exists(bot_photo_path) and bot_client:
+            try:
+                bot_me = await bot_client.get_me()
+                if bot_me.photo:
+                    logger.info("Downloading bot's profile photo for fallback card artwork...")
+                    await bot_client.download_media(bot_me.photo.big_file_id, file_name=bot_photo_path)
+            except Exception as e:
+                logger.warning(f"Could not download bot profile photo: {e}")
+        
+        if os.path.exists(bot_photo_path):
+            thumb_url = bot_photo_path
+
     await generate_thumbnail(
         title=extracted_data["title"],
         duration_str=extracted_data["duration_str"],
-        thumbnail_url=extracted_data["thumbnail"],
+        thumbnail_url=thumb_url,
         requester_name=song_data["requester"],
         channel=extracted_data["channel"],
         output_filename=thumb_path
