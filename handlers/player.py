@@ -53,6 +53,11 @@ async def is_authorized(client: Client, chat_id: int, user_id: int) -> bool:
 async def pause_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+        )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -85,6 +90,11 @@ async def pause_command(client: Client, message: Message):
 async def resume_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+        )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -116,6 +126,11 @@ async def resume_command(client: Client, message: Message):
 async def skip_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+        )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -134,6 +149,11 @@ async def skip_command(client: Client, message: Message):
 async def stop_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+        )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -170,6 +190,11 @@ async def stop_command(client: Client, message: Message):
 async def loop_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+        )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -204,6 +229,11 @@ async def loop_command(client: Client, message: Message):
 async def player_button_callbacks(client: Client, callback_query: CallbackQuery):
     if not client.me.is_bot:
         return
+    if not handlers.play.pytgcalls_client:
+        return await callback_query.answer(
+            "⚠️ অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশন নষ্ট হয়ে গেছে! মিউজিক কন্ট্রোল করা সম্ভব নয়।",
+            show_alert=True
+        )
     chat_id = callback_query.message.chat.id
     user_id = callback_query.from_user.id
     data = callback_query.data

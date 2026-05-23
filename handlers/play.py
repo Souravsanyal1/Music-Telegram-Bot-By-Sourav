@@ -34,6 +34,10 @@ def init_clients(py_calls: PyTgCalls, bot: Client, assistant: Client):
 
 async def play_next_song(chat_id: int):
     """Fetches the next song in queue, plays it, and updates player UI."""
+    if not assistant_client or not pytgcalls_client:
+        logger.warning(f"Aborting play_next_song in chat {chat_id} because assistant_client or pytgcalls_client is offline.")
+        return
+        
     if chat_id not in db_queue:
         return
         
@@ -263,6 +267,17 @@ async def play_next_song(chat_id: int):
 async def play_command(client: Client, message: Message):
     if not client.me.is_bot:
         return
+        
+    if not assistant_client or not pytgcalls_client:
+        return await message.reply_text(
+            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
+            "গান চালানোর জন্য অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।\n"
+            "দয়া করে একটি নতুন <code>SESSION_STRING</code> জেনারেট করে <code>.env</code> এবং Render-এ আপডেট করুন।\n\n"
+            "👉 <b>সেশন জেনারেট করার নিয়ম:</b>\n"
+            "১. বটের ফোল্ডারে <code>session_gen.py</code> স্ক্রিপ্টটি রান করে নতুন সেশন জেনারেট করুন।\n"
+            "২. জেনারেট করা সেশনটি <code>.env</code> ফাইলের <code>SESSION_STRING</code> ভেরিয়েবলে ও আপনার Render ড্যাশবোর্ডে সেট করুন এবং বটটি রিস্টার্ট করুন।"
+        )
+        
     """
     Handles the /play command in groups.
     Supports YouTube URLs, YouTube Music, direct query searches, and replied audio files.

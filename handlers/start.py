@@ -25,9 +25,12 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
             logger.warning(f"Force sub channel check for bot failed: {e}. Falling back to Assistant Client.")
             try:
                 from handlers.play import assistant_client
-                chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
-                if chat_member.status in ["left", "kicked"]:
-                    return False
+                if assistant_client:
+                    chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
+                    if chat_member.status in ["left", "kicked"]:
+                        return False
+                else:
+                    logger.warning("Assistant client is offline. Skipping force sub channel check fallback.")
             except UserNotParticipant:
                 return False
             except Exception as assistant_err:
@@ -46,9 +49,12 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
             logger.warning(f"Force sub group check for bot failed: {e}. Falling back to Assistant Client.")
             try:
                 from handlers.play import assistant_client
-                chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
-                if chat_member.status in ["left", "kicked"]:
-                    return False
+                if assistant_client:
+                    chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
+                    if chat_member.status in ["left", "kicked"]:
+                        return False
+                else:
+                    logger.warning("Assistant client is offline. Skipping force sub group check fallback.")
             except UserNotParticipant:
                 return False
             except Exception as assistant_err:
