@@ -208,19 +208,25 @@ async def play_next_song(chat_id: int):
     # Send Player UI Card
     if bot_client and os.path.exists(thumb_path):
         caption_text = (
-            f"⚡ <b>স্ট্রিমিং শুরু হয়েছে!</b>\n\n"
-            f"🎵 <b>নাম:</b> <a href='{song_data['url']}'>{extracted_data['title']}</a>\n"
-            f"⏱ <b>সময়কাল:</b> <code>{extracted_data['duration_str']}</code> মিনিট\n"
-            f"🎙 <b>চ্যানেল:</b> <code>{extracted_data['channel']}</code>\n"
-            f"👤 <b>অনুরোধকারী:</b> {song_data['requester_mention']}\n\n"
-            f"🎧 <i>গ্রুপ ভয়েস চ্যাটে গান চলছে!</i>"
+            f"🧙‍♀️ ✨ <b>STARTED STREAMING |</b>\n\n"
+            f"🧙‍♀️ <b>Title :</b> <a href='{song_data['url']}'>{extracted_data['title']}</a>\n"
+            f"⏱ <b>Duration :</b> <code>{extracted_data['duration_str']}</code> MINUTES\n"
+            f"👤 <b>Requested by :</b> {song_data['requester_mention']} 🎸"
         )
         try:
+            import time
+            song_data["start_time"] = time.time()
+            
             sent_msg = await bot_client.send_photo(
                 chat_id,
                 photo=thumb_path,
                 caption=caption_text,
-                reply_markup=get_player_buttons(is_paused=False, is_looping=group_data["is_looping"])
+                reply_markup=get_player_buttons(
+                    elapsed_secs=0,
+                    total_secs=song_data.get("duration", 0),
+                    is_paused=False,
+                    is_looping=group_data["is_looping"]
+                )
             )
             # Save active player card message ID for dynamic updates
             group_data["active_msg_id"] = sent_msg.id

@@ -12,6 +12,22 @@ from handlers.play import (
     play_next_song,
 )
 from utils.inline import get_player_buttons
+from pyrogram.types import InlineKeyboardMarkup
+
+def get_updated_deck(group_data: dict, is_paused: bool = False) -> InlineKeyboardMarkup:
+    """Helper to generate the player inline deck with dynamic real-time progress calculations."""
+    curr = group_data.get("current_song")
+    total = curr.get("duration", 0) if curr else 0
+    elapsed = 0
+    if curr and "start_time" in curr:
+        import time
+        elapsed = int(time.time() - curr["start_time"])
+    return get_player_buttons(
+        elapsed_secs=elapsed,
+        total_secs=total,
+        is_paused=is_paused,
+        is_looping=group_data.get("is_looping", False)
+    )
 
 logger = logging.getLogger("MusicBot.Controller")
 
@@ -56,7 +72,7 @@ async def pause_command(client: Client, message: Message):
                 await client.edit_message_reply_markup(
                     chat_id,
                     db_queue[chat_id]["active_msg_id"],
-                    reply_markup=get_player_buttons(is_paused=True, is_looping=db_queue[chat_id]["is_looping"])
+                    reply_markup=get_updated_deck(db_queue[chat_id], is_paused=True)
                 )
             except Exception:
                 pass
@@ -87,7 +103,7 @@ async def resume_command(client: Client, message: Message):
                 await client.edit_message_reply_markup(
                     chat_id,
                     db_queue[chat_id]["active_msg_id"],
-                    reply_markup=get_player_buttons(is_paused=False, is_looping=db_queue[chat_id]["is_looping"])
+                    reply_markup=get_updated_deck(db_queue[chat_id], is_paused=False)
                 )
             except Exception:
                 pass
@@ -176,7 +192,7 @@ async def loop_command(client: Client, message: Message):
             await client.edit_message_reply_markup(
                 chat_id,
                 group_data["active_msg_id"],
-                reply_markup=get_player_buttons(is_paused=False, is_looping=group_data["is_looping"])
+                reply_markup=get_updated_deck(group_data, is_paused=False)
             )
         except Exception:
             pass
@@ -209,7 +225,7 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
             await handlers.play.pytgcalls_client.pause(chat_id)
             await callback_query.answer("⏸ মিউজিক পজ করা হয়েছে।", show_alert=False)
             await callback_query.message.edit_reply_markup(
-                reply_markup=get_player_buttons(is_paused=True, is_looping=group_data["is_looping"])
+                reply_markup=get_updated_deck(group_data, is_paused=True)
             )
         except Exception as e:
             logger.error(f"Callback pause error: {e}")
@@ -220,7 +236,7 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
             await handlers.play.pytgcalls_client.resume(chat_id)
             await callback_query.answer("▶️ মিউজিক রিজিউম করা হয়েছে।", show_alert=False)
             await callback_query.message.edit_reply_markup(
-                reply_markup=get_player_buttons(is_paused=False, is_looping=group_data["is_looping"])
+                reply_markup=get_updated_deck(group_data, is_paused=False)
             )
         except Exception as e:
             logger.error(f"Callback resume error: {e}")
@@ -263,12 +279,19 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
         group_data["is_looping"] = True
         await callback_query.answer("🔁 সিঙ্গেল লুপ চালু করা হয়েছে!", show_alert=False)
         await callback_query.message.edit_reply_markup(
-            reply_markup=get_player_buttons(is_paused=False, is_looping=True)
+            reply_markup=get_updated_deck(group_data, is_paused=False)
         )
 
     elif data == "c_unloop":
         group_data["is_looping"] = False
         await callback_query.answer("❌ লুপ বন্ধ করা হয়েছে!", show_alert=False)
         await callback_query.message.edit_reply_markup(
-            reply_markup=get_player_buttons(is_paused=False, is_looping=False)
+            reply_markup=get_updated_deck(group_data, is_paused=False)
         )
+
+
+@Client.on_callback_query(filters.regex(pattern=r"^c_empty$"))
+async def empty_callback(client: Client, callback_query: CallbackQuery):
+    if not client.me.is_bot:
+        return
+    await callback_query.answer()

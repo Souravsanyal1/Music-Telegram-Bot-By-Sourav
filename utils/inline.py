@@ -42,38 +42,33 @@ def get_start_buttons(bot_username: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def get_player_buttons(is_paused: bool = False, is_looping: bool = False) -> InlineKeyboardMarkup:
+def get_player_buttons(elapsed_secs: int = 0, total_secs: int = 0, is_paused: bool = False, is_looping: bool = False) -> InlineKeyboardMarkup:
     """
-    Returns the interactive inline audio deck matching premium players:
-    [ ⏸ / ▶️ ] [ 🔁 ] [ ⏭ Skip ] [ ⏹ Stop ]
+    Returns the interactive inline audio deck matching the 2nd image:
+    [ Elapsed ────🔘──────── Total ]
+    [ ◀ (Play) ] [ Ⅱ (Pause) ] [ 🔄 (Loop) ] [ ⏭ (Skip) ] [ ⏹ (Stop) ]
     """
-    pause_play_btn = (
-        InlineKeyboardButton("▶️ Resume", callback_data="c_resume") if is_paused
-        else InlineKeyboardButton("⏸ Pause", callback_data="c_pause")
-    )
-    
-    loop_btn = (
-        InlineKeyboardButton("🔁 Loop On", callback_data="c_unloop") if is_looping
-        else InlineKeyboardButton("🔁 Loop Off", callback_data="c_loop")
-    )
+    progress_text = generate_text_progress_bar(elapsed_secs, total_secs)
     
     buttons = [
         [
-            pause_play_btn,
-            loop_btn
+            InlineKeyboardButton(progress_text, callback_data="c_empty")
         ],
         [
-            InlineKeyboardButton("⏭ Skip", callback_data="c_skip"),
-            InlineKeyboardButton("⏹ Stop", callback_data="c_stop")
+            InlineKeyboardButton("◀", callback_data="c_resume"),
+            InlineKeyboardButton("Ⅱ", callback_data="c_pause"),
+            InlineKeyboardButton("🔄" if is_looping else "🔁", callback_data="c_unloop" if is_looping else "c_loop"),
+            InlineKeyboardButton("⏭", callback_data="c_skip"),
+            InlineKeyboardButton("⏹", callback_data="c_stop")
         ]
     ]
     return InlineKeyboardMarkup(buttons)
 
 
 def generate_text_progress_bar(elapsed_secs: int, total_secs: int) -> str:
-    """Generates an aesthetic text-based audio seek bar e.g. '01:34 ───O─────── 04:00'."""
+    """Generates an aesthetic text-based audio seek bar e.g. '01:34 ────🔘──────── 04:00'."""
     if total_secs <= 0:
-        return "00:00 ───O─────── 00:00"
+        return "00:00 ────🔘──────── 00:00"
         
     bar_length = 12
     progress_ratio = min(1.0, max(0.0, elapsed_secs / total_secs))

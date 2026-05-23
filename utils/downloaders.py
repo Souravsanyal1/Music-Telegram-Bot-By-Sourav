@@ -33,6 +33,16 @@ async def search_youtube(query: str, limit: int = 1) -> list:
             "ignoreerrors": True,
             "geo_bypass": True,
             "extract_flat": "in_playlist",
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios"]
+                }
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
             "cookiefile": "cookies.txt" if os.path.exists("cookies.txt") else None,
         }
         
@@ -86,6 +96,16 @@ async def extract_audio_stream(url: str) -> dict:
             "nocheckcertificate": True,
             "ignoreerrors": True,
             "geo_bypass": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios"]
+                }
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
             # If cookies.txt exists in the working directory, use it to bypass age restrictions
             "cookiefile": "cookies.txt" if os.path.exists("cookies.txt") else None,
         }
