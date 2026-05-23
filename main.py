@@ -72,6 +72,7 @@ bot_client = None
 assistant_client = None
 call_py = None
 _assistant_fail_time = 0  # Timestamp of last assistant connection failure (cooldown cache)
+_pytgcalls_running = False
 
 async def log_all_messages(client, message):
     logger.info(f"✨ DIRECT MESSAGE RECEIVED: {message.text or '[Media/None]'} from {message.from_user.id if message.from_user else 'unknown'}")
@@ -92,8 +93,8 @@ async def stream_end_callback(client: PyTgCalls, update: Update):
 
 
 async def ensure_assistant_online() -> bool:
-    global assistant_client, call_py, bot_client, _assistant_fail_time
-    if assistant_client and assistant_client.is_connected and call_py and call_py.is_running:
+    global assistant_client, call_py, bot_client, _assistant_fail_time, _pytgcalls_running
+    if assistant_client and assistant_client.is_connected and call_py and _pytgcalls_running:
         return True
 
     # Cooldown: if assistant recently failed, skip retries for 3 minutes (instant response)
@@ -176,13 +177,15 @@ async def ensure_assistant_online() -> bool:
         call_py = PyTgCalls(assistant_client)
         call_py.on_update(filters.stream_end())(stream_end_callback)
         
-    if not call_py.is_running:
+    if not _pytgcalls_running:
         try:
             await call_py.start()
+            _pytgcalls_running = True
             logger.info("✅ PyTgCalls voice engine established!")
         except Exception as e:
             logger.error(f"❌ Failed to start PyTgCalls engine: {e}")
             call_py = None
+            _pytgcalls_running = False
             _assistant_fail_time = _time.time()
             return False
             
@@ -277,8 +280,14 @@ async def main():
     
     # Graceful shutdown
     print("\n🛑 Shutting down services...")
+    if call_py and _pytgcalls_running:
+        try:
+            await call_py.stop()
+        except Exception:
+            pass
     await bot_client.stop()
-    await assistant_client.stop()
+    if assistant_client and assistant_client.is_connected:
+        await assistant_client.stop()
     print("👋 Goodbye!")
 
 
