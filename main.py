@@ -119,8 +119,8 @@ async def ensure_assistant_online() -> bool:
             assistant_client = None
             return False
         except pyrogram.errors.AuthKeyDuplicated:
-            logger.warning("❌ Assistant Client has duplicate session active. Waiting 7 seconds before retry...")
-            await asyncio.sleep(7)
+            logger.warning("❌ Assistant Client has duplicate session active. Waiting 32 seconds for old Render container to terminate...")
+            await asyncio.sleep(32)
             try:
                 await assistant_client.start()
                 logger.info("✅ Assistant Client started successfully after retry!")
