@@ -194,6 +194,10 @@ async def play_next_song(chat_id: int):
                             await status_msg.edit(error_text)
                         else:
                             await bot_client.send_message(chat_id, error_text)
+                        # Reset states to prevent bot freezing
+                        group_data["current_song"] = None
+                        if chat_id in active_calls:
+                            active_calls.remove(chat_id)
                         return
         except Exception as outer_err:
             logger.error(f"Error checking/adding assistant to voice chat: {outer_err}")
@@ -206,6 +210,14 @@ async def play_next_song(chat_id: int):
         logger.error(f"PyTgCalls streaming failed for {chat_id}: {e}")
         if status_msg:
             await status_msg.edit(f"❌ <b>ভয়েস চ্যাটে স্ট্রিম শুরু করতে ব্যর্থ হয়েছে!</b>\n\n<i>নিশ্চিত করুন অ্যাসিস্ট্যান্ট অ্যাকাউন্টটি চ্যাটে যুক্ত আছে এবং কথা বলার পারমিশন আছে।</i>")
+        # Reset states to prevent bot freezing
+        group_data["current_song"] = None
+        if chat_id in active_calls:
+            active_calls.remove(chat_id)
+        try:
+            await pytgcalls_client.leave_call(chat_id)
+        except Exception:
+            pass
         return
 
     # Delete waiting message
