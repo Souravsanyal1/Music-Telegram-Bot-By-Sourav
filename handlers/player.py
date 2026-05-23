@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
 import os
 import config
+from pyrogram.enums import ChatMemberStatus
 import logging
 
 # Import queue states and controllers from handlers.play
@@ -39,7 +40,7 @@ async def is_authorized(client: Client, chat_id: int, user_id: int) -> bool:
     # Check if the user is a group administrator/owner
     try:
         member = await client.get_chat_member(chat_id, user_id)
-        if member.status in ["administrator", "owner"]:
+        if member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
             return True
     except Exception:
         pass

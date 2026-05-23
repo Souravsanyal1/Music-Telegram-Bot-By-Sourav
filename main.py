@@ -100,14 +100,28 @@ async def ensure_assistant_online() -> bool:
     import os
     workdir = os.path.dirname(os.path.abspath(__file__))
     
+    # Clean up stale local session file to prevent AUTH_KEY_DUPLICATED
+    stale_session = os.path.join(workdir, "MusicAssistant.session")
+    if os.path.exists(stale_session):
+        try:
+            os.remove(stale_session)
+            logger.info("🗑 Deleted stale MusicAssistant.session file.")
+        except Exception:
+            pass
+    stale_journal = stale_session + "-journal"
+    if os.path.exists(stale_journal):
+        try:
+            os.remove(stale_journal)
+        except Exception:
+            pass
+    
     if not assistant_client:
         assistant_client = Client(
             name="MusicAssistant",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.SESSION_STRING,
-            in_memory=False,
-            workdir=workdir
+            in_memory=True
         )
         
     if not assistant_client.is_connected:
@@ -119,13 +133,28 @@ async def ensure_assistant_online() -> bool:
             assistant_client = None
             return False
         except pyrogram.errors.AuthKeyDuplicated:
-            logger.warning("❌ Assistant Client has duplicate session active. Waiting 32 seconds for old Render container to terminate...")
-            await asyncio.sleep(32)
-            try:
-                await assistant_client.start()
-                logger.info("✅ Assistant Client started successfully after retry!")
-            except Exception as e:
-                logger.error(f"❌ Assistant Client failed to start after duplicate retry: {e}")
+            logger.warning("❌ Assistant Client has duplicate session active. Retrying with exponential backoff...")
+            started = False
+            for attempt, delay in enumerate([15, 35, 60], start=1):
+                logger.info(f"⏳ Retry {attempt}/3: Waiting {delay}s for old deployment to release session...")
+                await asyncio.sleep(delay)
+                try:
+                    # Recreate client fresh for each retry attempt
+                    assistant_client = Client(
+                        name="MusicAssistant",
+                        api_id=config.API_ID,
+                        api_hash=config.API_HASH,
+                        session_string=config.SESSION_STRING,
+                        in_memory=True
+                    )
+                    await assistant_client.start()
+                    logger.info("✅ Assistant Client started successfully after retry!")
+                    started = True
+                    break
+                except Exception as retry_err:
+                    logger.warning(f"❌ Retry {attempt}/3 failed: {retry_err}")
+            if not started:
+                logger.error("❌ Assistant Client failed to start after all retries. Voice features disabled.")
                 assistant_client = None
                 return False
         except Exception as e:
@@ -199,15 +228,8 @@ async def main():
     from pyrogram.handlers import MessageHandler
     bot_client.add_handler(MessageHandler(log_all_messages), group=-1)
 
-    # 2. Initialize Assistant Account User Client inside the loop
-    assistant_client = Client(
-        name="MusicAssistant",
-        api_id=config.API_ID,
-        api_hash=config.API_HASH,
-        session_string=config.SESSION_STRING,
-        in_memory=False,
-        workdir=workdir
-    )
+    # 2. Assistant Client is initialized lazily via ensure_assistant_online()
+    #    No need to create it here — it will be created on-demand when /play is used.
 
     print("🚀 Bootstrapping Telegram Music Bot...")
     

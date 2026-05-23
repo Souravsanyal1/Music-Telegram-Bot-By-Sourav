@@ -1,6 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import UserNotParticipant
+from pyrogram.enums import ChatMemberStatus
 from database.mongo import add_user
 from utils.inline import get_start_buttons
 import config
@@ -16,7 +17,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
     if config.FORCE_SUB_CHANNEL:
         try:
             chat_member = await client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
-            if chat_member.status in ["left", "kicked"]:
+            if chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]:
                 return False
         except UserNotParticipant:
             return False
@@ -27,7 +28,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
                 from handlers.play import assistant_client
                 if assistant_client:
                     chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_CHANNEL, user_id)
-                    if chat_member.status in ["left", "kicked"]:
+                    if chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]:
                         return False
                 else:
                     logger.warning("Assistant client is offline. Skipping force sub channel check fallback.")
@@ -40,7 +41,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
     if config.FORCE_SUB_GROUP:
         try:
             chat_member = await client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
-            if chat_member.status in ["left", "kicked"]:
+            if chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]:
                 return False
         except UserNotParticipant:
             return False
@@ -51,7 +52,7 @@ async def check_force_sub(client: Client, user_id: int) -> bool:
                 from handlers.play import assistant_client
                 if assistant_client:
                     chat_member = await assistant_client.get_chat_member(config.FORCE_SUB_GROUP, user_id)
-                    if chat_member.status in ["left", "kicked"]:
+                    if chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]:
                         return False
                 else:
                     logger.warning("Assistant client is offline. Skipping force sub group check fallback.")
