@@ -90,6 +90,67 @@ async def stream_end_callback(client: PyTgCalls, update: Update):
         await play_next_song(chat_id)
 
 
+async def ensure_assistant_online() -> bool:
+    global assistant_client, call_py, bot_client
+    if assistant_client and assistant_client.is_connected and call_py and call_py.is_running:
+        return True
+
+    logger.info("⏳ Ensuring Assistant Client and Voice Engine are online (lazy bootstrap)...")
+    
+    import os
+    workdir = os.path.dirname(os.path.abspath(__file__))
+    
+    if not assistant_client:
+        assistant_client = Client(
+            name="MusicAssistant",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=config.SESSION_STRING,
+            in_memory=False,
+            workdir=workdir
+        )
+        
+    if not assistant_client.is_connected:
+        try:
+            await assistant_client.start()
+            logger.info("✅ Assistant Client started successfully!")
+        except pyrogram.errors.AuthKeyUnregistered:
+            logger.error("❌ Assistant Client Session String has expired or is unregistered!")
+            assistant_client = None
+            return False
+        except pyrogram.errors.AuthKeyDuplicated:
+            logger.warning("❌ Assistant Client has duplicate session active. Waiting 7 seconds before retry...")
+            await asyncio.sleep(7)
+            try:
+                await assistant_client.start()
+                logger.info("✅ Assistant Client started successfully after retry!")
+            except Exception as e:
+                logger.error(f"❌ Assistant Client failed to start after duplicate retry: {e}")
+                assistant_client = None
+                return False
+        except Exception as e:
+            logger.error(f"❌ Failed to start Assistant Client: {e}")
+            assistant_client = None
+            return False
+            
+    if not call_py:
+        call_py = PyTgCalls(assistant_client)
+        call_py.on_update(filters.stream_end())(stream_end_callback)
+        
+    if not call_py.is_running:
+        try:
+            await call_py.start()
+            logger.info("✅ PyTgCalls voice engine established!")
+        except Exception as e:
+            logger.error(f"❌ Failed to start PyTgCalls engine: {e}")
+            call_py = None
+            return False
+            
+    from handlers.play import init_clients
+    init_clients(call_py, bot_client, assistant_client)
+    return True
+
+
 async def main():
     global bot_client, assistant_client, call_py
 
@@ -163,53 +224,14 @@ async def main():
     config.BOT_USERNAME = bot_me.username
     print(f"✅ Bot Client initialized as @{config.BOT_USERNAME}")
     
-    # Start assistant account with automatic FloodWait retry
-    assistant_started = False
+    # Attempt to start the Assistant Client on boot (will lazy load on-demand if it fails or overlaps)
     if config.SESSION_STRING:
-        while True:
-            try:
-                await assistant_client.start()
-                assistant_started = True
-                break
-            except pyrogram.errors.FloodWait as e:
-                print(f"⚠️ Telegram returned FLOOD_WAIT for Assistant Client. Sleeping for {e.value} seconds before retrying...")
-                await asyncio.sleep(e.value + 2)
-            except pyrogram.errors.AuthKeyUnregistered:
-                print("❌ Assistant Client Session String has expired or is unregistered!")
-                assistant_client = None
-                break
-            except Exception as e:
-                print(f"❌ Failed to start Assistant Client: {e}")
-                assistant_client = None
-                break
+        try:
+            await ensure_assistant_online()
+        except Exception as e:
+            print(f"⚠️ Initial Assistant boot deferred: {e}")
     else:
         print("⚠️ SESSION_STRING is empty. Assistant Client will not be started.")
-        assistant_client = None
-    
-    if assistant_started and assistant_client:
-        assistant_me = await assistant_client.get_me()
-        print(f"✅ Assistant User Client initialized as @{assistant_me.username or assistant_me.first_name}")
-        
-        # 3. Initialize PyTgCalls inside the loop after the assistant client is started
-        call_py = PyTgCalls(assistant_client)
-        
-        # Register stream end update callback dynamically
-        call_py.on_update(filters.stream_end())(stream_end_callback)
-        
-        # Share references with play handler
-        from handlers.play import init_clients
-        init_clients(call_py, bot_client, assistant_client)
-        
-        # Start PyTgCalls WebRTC streamer
-        try:
-            await call_py.start()
-            print("✅ PyTgCalls voice engine established!")
-        except Exception as e:
-            print(f"❌ Failed to start PyTgCalls engine: {e}")
-            call_py = None
-    else:
-        call_py = None
-        print("⚠️ PyTgCalls voice engine skipped because Assistant Client is offline.")
         from handlers.play import init_clients
         init_clients(None, bot_client, None)
     
