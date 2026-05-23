@@ -35,7 +35,7 @@ async def search_youtube(query: str, limit: int = 1) -> list:
             "extract_flat": "in_playlist",
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "ios"]
+                    "player_client": ["ios", "android"]
                 }
             },
             "http_headers": {
@@ -98,7 +98,7 @@ async def extract_audio_stream(url: str) -> dict:
             "geo_bypass": True,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "ios"]
+                    "player_client": ["ios", "android"]
                 }
             },
             "http_headers": {
