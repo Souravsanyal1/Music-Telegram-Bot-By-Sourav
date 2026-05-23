@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
+import os
 import config
 import logging
 
@@ -123,8 +124,15 @@ async def stop_command(client: Client, message: Message):
         if chat_id in active_calls:
             active_calls.remove(chat_id)
             
-        # Reset queue data completely
+        # Reset queue data completely and clean up downloaded TG files
         if chat_id in db_queue:
+            curr = db_queue[chat_id].get("current_song")
+            if curr and curr.get("local_path"):
+                if os.path.exists(curr["local_path"]):
+                    try:
+                        os.remove(curr["local_path"])
+                    except Exception:
+                        pass
             db_queue[chat_id]["queue"] = []
             db_queue[chat_id]["current_song"] = None
             
@@ -220,6 +228,15 @@ async def player_button_callbacks(client: Client, callback_query: CallbackQuery)
             await handlers.play.pytgcalls_client.leave_call(chat_id)
             if chat_id in active_calls:
                 active_calls.remove(chat_id)
+                
+            # Clean up temporary downloaded file
+            curr = group_data.get("current_song")
+            if curr and curr.get("local_path"):
+                if os.path.exists(curr["local_path"]):
+                    try:
+                        os.remove(curr["local_path"])
+                    except Exception:
+                        pass
             group_data["queue"] = []
             group_data["current_song"] = None
             

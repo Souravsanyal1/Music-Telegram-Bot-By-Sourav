@@ -39,6 +39,17 @@ async def play_next_song(chat_id: int):
         
     group_data = db_queue[chat_id]
     
+    # Clean up previous song's temporary file if it was a downloaded TG file
+    if not (group_data["is_looping"] and group_data["current_song"]):
+        if group_data.get("current_song") and group_data["current_song"].get("local_path"):
+            old_path = group_data["current_song"]["local_path"]
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                    logger.info(f"Successfully cleaned up old TG download file: {old_path}")
+                except Exception as clean_err:
+                    logger.warning(f"Could not delete old TG file {old_path}: {clean_err}")
+    
     # Handle Song Looping
     if group_data["is_looping"] and group_data["current_song"]:
         # Re-play current song
@@ -53,6 +64,15 @@ async def play_next_song(chat_id: int):
                 pass
             if chat_id in active_calls:
                 active_calls.remove(chat_id)
+                
+            # Clean up the last song's local file
+            if group_data.get("current_song") and group_data["current_song"].get("local_path"):
+                old_path = group_data["current_song"]["local_path"]
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except Exception:
+                        pass
             group_data["current_song"] = None
             
             # Send notification
@@ -75,15 +95,42 @@ async def play_next_song(chat_id: int):
             f"🎵 <b>'{song_data['title']}'</b> এক্সট্র্যাক্ট করা হচ্ছে... দয়া করে অপেক্ষা করুন। 🎧"
         )
         
-    # Extract Direct Audio Stream Link
-    extracted_data = await extract_audio_stream(song_data["url"])
-    if not extracted_data:
+    # Extract Direct Audio Stream Link or Download Telegram File
+    is_tg_file = song_data.get("is_tg_file", False)
+    extracted_data = None
+    
+    if is_tg_file:
         if status_msg:
-            await status_msg.edit("❌ <b>দুঃখিত!</b> এই গানটি এক্সট্র্যাক্ট করা যায়নি। পরের গানটি লোড করা হচ্ছে...")
-        # Try playing next
-        group_data["current_song"] = None
-        await play_next_song(chat_id)
-        return
+            await status_msg.edit(f"📥 <b>'{song_data['title']}'</b> ডাউনলোড করা হচ্ছে... দয়া করে অপেক্ষা করুন। 🎧")
+        try:
+            tg_file_path = await assistant_client.download_media(song_data["file_id"])
+            if not tg_file_path or not os.path.exists(tg_file_path):
+                raise ValueError("Downloaded file path is invalid")
+            
+            song_data["local_path"] = tg_file_path
+            extracted_data = {
+                "title": song_data["title"],
+                "duration_str": song_data["duration_str"],
+                "thumbnail": None,
+                "stream_url": tg_file_path,
+                "channel": song_data["channel"] or "Telegram Audio"
+            }
+        except Exception as err:
+            logger.error(f"Telegram file download failed: {err}")
+            if status_msg:
+                await status_msg.edit("❌ <b>দুঃখিত!</b> টেলিগ্রাম ফাইলটি ডাউনলোড করা যায়নি। পরের গানটি লোড করা হচ্ছে...")
+            group_data["current_song"] = None
+            await play_next_song(chat_id)
+            return
+    else:
+        extracted_data = await extract_audio_stream(song_data["url"])
+        if not extracted_data:
+            if status_msg:
+                await status_msg.edit("❌ <b>দুঃখিত!</b> এই গানটি এক্সট্র্যাক্ট করা যায়নি। পরের গানটি লোড করা হচ্ছে...")
+            # Try playing next
+            group_data["current_song"] = None
+            await play_next_song(chat_id)
+            return
 
     # Dynamic Card Generation
     thumb_path = f"thumb_{chat_id}.png"
@@ -174,20 +221,96 @@ async def play_next_song(chat_id: int):
 async def play_command(client: Client, message: Message):
     """
     Handles the /play command in groups.
-    Supports YouTube URLs, YouTube Music, and direct query searches.
+    Supports YouTube URLs, YouTube Music, direct query searches, and replied audio files.
     Manages voice chat auto-join and queues.
     """
     chat_id = message.chat.id
     user = message.from_user
     
-    if len(message.command) < 2:
+    reply = message.reply_to_message
+    has_reply_audio = reply and (reply.audio or reply.voice or (reply.document and reply.document.mime_type and reply.document.mime_type.startswith("audio/")))
+    
+    if len(message.command) < 2 and not has_reply_audio:
         return await message.reply_text(
             "❌ <b>কমান্ডটি অসম্পূর্ণ!</b>\n\n"
             "গানের নাম অথবা YouTube লিংক দিন।\n"
             "যেমন: <code>/play Alan Walker Faded</code>\n"
-            "অথবা: <code>/play https://youtu.be/dQw4w9WgXcQ</code>"
+            "অথবা: <code>/play https://youtu.be/dQw4w9WgXcQ</code>\n"
+            "অথবা কোনো অডিও ফাইলের রিপ্লাই দিয়ে লিখুন: <code>/play</code>"
         )
         
+    # Setup queue for this group if not already present
+    if chat_id not in db_queue:
+        db_queue[chat_id] = {
+            "queue": [],
+            "is_looping": False,
+            "current_song": None,
+            "active_msg_id": None
+        }
+        
+    group_data = db_queue[chat_id]
+    
+    # Handle replied Telegram audio files directly
+    if has_reply_audio:
+        status_msg = await message.reply_text("📥 <b>অডিও ফাইলটি বিশ্লেষণ করা হচ্ছে...</b> দয়া করে অপেক্ষা করুন। 🎧")
+        was_idle = (chat_id not in active_calls and group_data["current_song"] is None)
+        
+        audio_obj = reply.audio or reply.voice or reply.document
+        title = "Unknown Audio"
+        performer = "Telegram Audio"
+        duration = 0
+        file_id = audio_obj.file_id
+        
+        if reply.audio:
+            title = reply.audio.title or "Unknown Audio"
+            performer = reply.audio.performer or "Unknown Artist"
+            duration = reply.audio.duration or 0
+        elif reply.voice:
+            title = f"Voice Note from {reply.from_user.first_name if reply.from_user else 'User'}"
+            performer = "Voice Note"
+            duration = reply.voice.duration or 0
+        elif reply.document:
+            title = reply.document.file_name or "Unknown Audio File"
+            performer = "Document Audio"
+            
+        full_title = f"{performer} - {title}" if performer not in ["Unknown Artist", "Telegram Audio", "Document Audio", "Voice Note"] else title
+        mins, secs = divmod(duration, 60)
+        duration_str = f"{mins:02d}:{secs:02d}"
+        
+        song_info = {
+            "title": full_title,
+            "duration": duration,
+            "duration_str": duration_str,
+            "thumbnail": None,
+            "url": f"tg_file_id:{file_id}",
+            "channel": performer,
+            "requester": user.first_name if user else "Unknown User",
+            "requester_mention": user.mention if user else "Unknown User",
+            "file_id": file_id,
+            "is_tg_file": True
+        }
+        
+        group_data["queue"].append(song_info)
+        
+        if was_idle:
+            await play_next_song(chat_id)
+            
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+            
+        is_currently_playing = (group_data["current_song"] and group_data["current_song"]["url"] == song_info["url"])
+        if not (is_currently_playing and len(group_data["queue"]) == 0):
+            queue_pos = len(group_data["queue"])
+            await message.reply_text(
+                f"➕ <b>কিউতে যোগ করা হয়েছে! (টেলিগ্রাম অডিও)</b>\n\n"
+                f"🎵 <b>গান:</b> <code>{song_info['title']}</code>\n"
+                f"🔢 <b>অবস্থান:</b> <code>#{queue_pos}</code>\n"
+                f"👤 <b>অনুরোধকারী:</b> {song_info['requester_mention']}"
+            )
+        return
+
     raw_query = " ".join(message.command[1:])
     
     # Save active chat details to MongoDB database asynchronously

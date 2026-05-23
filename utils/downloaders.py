@@ -5,11 +5,23 @@ from yt_dlp import YoutubeDL
 
 logger = logging.getLogger("MusicBot.Downloader")
 
+def clean_query(query: str) -> str:
+    """Removes hashtags, mentions, and cleans up extra whitespace."""
+    if not query:
+        return ""
+    cleaned = query.replace("#", " ").replace("@", " ")
+    return " ".join(cleaned.split())
+
+
 async def search_youtube(query: str, limit: int = 1) -> list:
     """
     Asynchronously searches YouTube for a given query and parses metadata using yt-dlp.
     Returns a list of song dictionaries.
     """
+    query = clean_query(query)
+    if not query:
+        return []
+        
     loop = asyncio.get_event_loop()
     
     def search():
