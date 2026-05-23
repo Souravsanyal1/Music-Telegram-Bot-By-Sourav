@@ -71,6 +71,7 @@ logger = logging.getLogger("MusicBot.Main")
 bot_client = None
 assistant_client = None
 call_py = None
+_assistant_fail_time = 0  # Timestamp of last assistant connection failure (cooldown cache)
 
 async def log_all_messages(client, message):
     logger.info(f"✨ DIRECT MESSAGE RECEIVED: {message.text or '[Media/None]'} from {message.from_user.id if message.from_user else 'unknown'}")
@@ -91,9 +92,15 @@ async def stream_end_callback(client: PyTgCalls, update: Update):
 
 
 async def ensure_assistant_online() -> bool:
-    global assistant_client, call_py, bot_client
+    global assistant_client, call_py, bot_client, _assistant_fail_time
     if assistant_client and assistant_client.is_connected and call_py and call_py.is_running:
         return True
+
+    # Cooldown: if assistant recently failed, skip retries for 3 minutes (instant response)
+    import time as _time
+    if _assistant_fail_time and (_time.time() - _assistant_fail_time) < 180:
+        logger.warning("⏳ Assistant Client cooldown active. Skipping retry.")
+        return False
 
     logger.info("⏳ Ensuring Assistant Client and Voice Engine are online (lazy bootstrap)...")
     
@@ -131,6 +138,7 @@ async def ensure_assistant_online() -> bool:
         except pyrogram.errors.AuthKeyUnregistered:
             logger.error("❌ Assistant Client Session String has expired or is unregistered!")
             assistant_client = None
+            _assistant_fail_time = _time.time()
             return False
         except pyrogram.errors.AuthKeyDuplicated:
             logger.warning("❌ Assistant Client has duplicate session active. Retrying with exponential backoff...")
@@ -156,10 +164,12 @@ async def ensure_assistant_online() -> bool:
             if not started:
                 logger.error("❌ Assistant Client failed to start after all retries. Voice features disabled.")
                 assistant_client = None
+                _assistant_fail_time = _time.time()
                 return False
         except Exception as e:
             logger.error(f"❌ Failed to start Assistant Client: {e}")
             assistant_client = None
+            _assistant_fail_time = _time.time()
             return False
             
     if not call_py:
@@ -173,8 +183,10 @@ async def ensure_assistant_online() -> bool:
         except Exception as e:
             logger.error(f"❌ Failed to start PyTgCalls engine: {e}")
             call_py = None
+            _assistant_fail_time = _time.time()
             return False
             
+    _assistant_fail_time = 0  # Reset cooldown on success
     from handlers.play import init_clients
     init_clients(call_py, bot_client, assistant_client)
     return True

@@ -271,8 +271,9 @@ async def play_command(client: Client, message: Message):
     from main import ensure_assistant_online
     if not await ensure_assistant_online():
         return await message.reply_text(
-            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>\n\n"
-            "দয়া করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>\n\n"
+            "🔧 <b>সম্ভাব্য কারণ:</b> অ্যাসিস্ট্যান্ট অ্যাকাউন্টের সেশন সমস্যা।\n"
+            "👨‍💻 অ্যাডমিনকে জানান SESSION_STRING চেক ও আপডেট করতে।"
         )
         
     """
