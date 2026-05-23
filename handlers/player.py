@@ -35,6 +35,8 @@ async def is_authorized(client: Client, chat_id: int, user_id: int) -> bool:
 
 @Client.on_message(filters.command(["pause", "p"]) & filters.group)
 async def pause_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -65,6 +67,8 @@ async def pause_command(client: Client, message: Message):
 
 @Client.on_message(filters.command(["resume", "r"]) & filters.group)
 async def resume_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -94,6 +98,8 @@ async def resume_command(client: Client, message: Message):
 
 @Client.on_message(filters.command(["skip", "s"]) & filters.group)
 async def skip_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -110,6 +116,8 @@ async def skip_command(client: Client, message: Message):
 
 @Client.on_message(filters.command(["stop", "end", "c"]) & filters.group)
 async def stop_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -144,6 +152,8 @@ async def stop_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("loop") & filters.group)
 async def loop_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
     
@@ -176,6 +186,8 @@ async def loop_command(client: Client, message: Message):
 
 @Client.on_callback_query(filters.regex(pattern=r"^c_(pause|resume|skip|stop|loop|unloop)$"))
 async def player_button_callbacks(client: Client, callback_query: CallbackQuery):
+    if not client.me.is_bot:
+        return
     chat_id = callback_query.message.chat.id
     user_id = callback_query.from_user.id
     data = callback_query.data

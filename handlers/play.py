@@ -236,6 +236,8 @@ async def play_next_song(chat_id: int):
 
 @Client.on_message(filters.command("play") & filters.group)
 async def play_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """
     Handles the /play command in groups.
     Supports YouTube URLs, YouTube Music, direct query searches, and replied audio files.
@@ -440,6 +442,8 @@ async def play_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("queue") & filters.group)
 async def queue_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Displays the list of upcoming songs in the queue."""
     chat_id = message.chat.id
     
@@ -471,6 +475,8 @@ async def queue_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("play") & filters.private)
 async def play_private_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """
     Handles the /play command in private chats.
     Warns the user that /play only works inside groups, and offers a button to add the bot to a group.

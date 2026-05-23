@@ -24,6 +24,8 @@ def sudo_only():
 @Client.on_message(filters.command("stats") & sudo_only() & filters.group)
 @Client.on_message(filters.command("stats") & sudo_only() & filters.private)
 async def stats_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Displays real-time server and bot database stats."""
     status_msg = await message.reply_text("📊 <b>স্ট্যাটিস্টিকস সংগ্রহ করা হচ্ছে...</b>")
     
@@ -53,6 +55,8 @@ async def stats_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("clean") & sudo_only())
 async def clean_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Clears cache, resets queues, and frees unused memory."""
     global db_queue, active_calls
     
@@ -70,6 +74,8 @@ async def clean_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("broadcast") & sudo_only())
 async def broadcast_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """
     Broadcasts text, photo, video, or document messages globally to
     all registered user inboxes (PM) and group chats in the database.

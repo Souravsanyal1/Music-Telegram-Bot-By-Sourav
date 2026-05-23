@@ -83,6 +83,8 @@ def get_force_sub_markup() -> InlineKeyboardMarkup:
 
 @Client.on_message(filters.command("start") & filters.private)
 async def start_private(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Greets the user in PM, checks force channel join, and logs registration details."""
     user = message.from_user
     
@@ -126,6 +128,8 @@ async def start_private(client: Client, message: Message):
 
 @Client.on_message(filters.command("start") & filters.group)
 async def start_group(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Simple greeting when bot start command is triggered in a group chat."""
     await message.reply_text(
         f"🎵 <b>মিউজিক বট সক্রিয় আছে!</b>\n\n"
@@ -137,6 +141,8 @@ async def start_group(client: Client, message: Message):
 
 @Client.on_message(filters.command("help"))
 async def help_command(client: Client, message: Message):
+    if not client.me.is_bot:
+        return
     """Displays a list of available player controls and admin commands."""
     user_id = message.from_user.id if message.from_user else 0
     
@@ -177,6 +183,8 @@ async def help_command(client: Client, message: Message):
 
 @Client.on_callback_query(filters.regex(pattern=r"^c_verify_sub$"))
 async def verify_sub_callback(client: Client, callback_query: CallbackQuery):
+    if not client.me.is_bot:
+        return
     """Callback query to verify if the user joined the update channel and unlocks features."""
     user = callback_query.from_user
     
