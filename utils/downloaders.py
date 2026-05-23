@@ -162,6 +162,7 @@ async def extract_audio_stream(url: str) -> dict:
                 }
             except Exception as e:
                 logger.error(f"yt-dlp extraction error for URL '{url}': {e}", exc_info=True)
-                return None
+                # Return the exception message to help troubleshoot datacenter IP restrictions
+                return {"error": str(e)}
 
     return await loop.run_in_executor(None, extract)

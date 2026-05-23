@@ -124,9 +124,16 @@ async def play_next_song(chat_id: int):
             return
     else:
         extracted_data = await extract_audio_stream(song_data["url"])
-        if not extracted_data:
+        if not extracted_data or "error" in extracted_data:
+            err_msg = extracted_data.get("error", "Unknown extraction error") if extracted_data else "No data returned"
+            logger.error(f"Extraction failed for {song_data['title']}: {err_msg}")
             if status_msg:
-                await status_msg.edit("❌ <b>দুঃখিত!</b> এই গানটি এক্সট্র্যাক্ট করা যায়নি। পরের গানটি লোড করা হচ্ছে...")
+                await status_msg.edit(
+                    f"❌ <b>দুঃখিত! এই গানটি এক্সট্র্যাক্ট করা যায়নি।</b>\n\n"
+                    f"🔍 <b>কারণ:</b> <code>{err_msg}</code>\n\n"
+                    f"<i>পরের গানটি লোড করা হচ্ছে...</i>"
+                )
+                await asyncio.sleep(5)
             # Try playing next
             group_data["current_song"] = None
             await play_next_song(chat_id)
