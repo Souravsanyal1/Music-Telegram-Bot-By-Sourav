@@ -55,8 +55,7 @@ async def pause_command(client: Client, message: Message):
         return
     if not handlers.play.pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>"
         )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
@@ -92,8 +91,7 @@ async def resume_command(client: Client, message: Message):
         return
     if not handlers.play.pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>"
         )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
@@ -128,8 +126,7 @@ async def skip_command(client: Client, message: Message):
         return
     if not handlers.play.pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>"
         )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
@@ -151,8 +148,7 @@ async def stop_command(client: Client, message: Message):
         return
     if not handlers.play.pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>"
         )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
@@ -192,8 +188,7 @@ async def loop_command(client: Client, message: Message):
         return
     if not handlers.play.pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "মিউজিক কন্ট্রোল করতে অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>"
         )
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0

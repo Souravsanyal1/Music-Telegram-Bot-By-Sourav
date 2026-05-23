@@ -270,12 +270,8 @@ async def play_command(client: Client, message: Message):
         
     if not assistant_client or not pytgcalls_client:
         return await message.reply_text(
-            "⚠️ <b>অ্যাসিস্ট্যান্ট অ্যাকাউন্ট নিষ্ক্রিয় বা সেশনটি নষ্ট হয়ে গেছে!</b>\n\n"
-            "গান চালানোর জন্য অ্যাসিস্ট্যান্ট অ্যাকাউন্টের একটি সক্রিয় সেশন প্রয়োজন।\n"
-            "দয়া করে একটি নতুন <code>SESSION_STRING</code> জেনারেট করে <code>.env</code> এবং Render-এ আপডেট করুন।\n\n"
-            "👉 <b>সেশন জেনারেট করার নিয়ম:</b>\n"
-            "১. বটের ফোল্ডারে <code>session_gen.py</code> স্ক্রিপ্টটি রান করে নতুন সেশন জেনারেট করুন।\n"
-            "২. জেনারেট করা সেশনটি <code>.env</code> ফাইলের <code>SESSION_STRING</code> ভেরিয়েবলে ও আপনার Render ড্যাশবোর্ডে সেট করুন এবং বটটি রিস্টার্ট করুন।"
+            "⚠️ <b>ভয়েস চ্যাট ইঞ্জিন বর্তমানে নিষ্ক্রিয় আছে!</b>\n\n"
+            "দয়া করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
         )
         
     """
