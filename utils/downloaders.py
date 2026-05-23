@@ -94,7 +94,7 @@ async def extract_audio_stream(url: str) -> dict:
             "quiet": True,
             "no_warnings": True,
             "nocheckcertificate": True,
-            "ignoreerrors": True,
+            "ignoreerrors": False,
             "geo_bypass": True,
             "extractor_args": {
                 "youtube": {
