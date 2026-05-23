@@ -1,4 +1,6 @@
 import asyncio
+
+# Setup the asyncio event loop before importing Pyrogram to prevent RuntimeError on newer Python versions
 try:
     asyncio.get_event_loop()
 except RuntimeError:
@@ -6,20 +8,14 @@ except RuntimeError:
 
 from pyrogram import Client
 
-async def main():
-    try:
-        api_id = int(input("🔑 Enter your API_ID (from my.telegram.org): "))
-        api_hash = input("🔑 Enter your API_HASH (from my.telegram.org): ")
-        
-        print("\n⏳ Connecting to Telegram...")
-        async with Client("session_generator", api_id=api_id, api_hash=api_hash, in_memory=True) as app:
-            print("\n👇 Copy this complete Session String:")
-            print(await app.export_session_string())
-            print("👆 Copy the whole string carefully!\n")
-    except ValueError:
-        print("\n❌ Error: API_ID must be a valid integer.")
-    except Exception as e:
-        print(f"\n❌ An error occurred: {e}")
+API_ID = 35441827
+API_HASH = "0a33260aa2d0a4f789c7497adfdcd33f"
 
-if __name__ == "__main__":
-    asyncio.run(main())
+with Client(
+    name="session_generator",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    in_memory=True
+) as app:
+    print("\nSESSION_STRING:\n")
+    print(app.export_session_string())
